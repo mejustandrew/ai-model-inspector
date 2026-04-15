@@ -89,6 +89,25 @@ const tensorBody = document.querySelector('#tensor-body');
 const downloadJsonButton = document.querySelector('#download-json');
 
 let latestResult = null;
+const COLLAPSIBLE_VALUE_LENGTH = 2000;
+const COLLAPSIBLE_ARRAY_LENGTH = 40;
+const COPY_RESET_DELAY_MS = 1500;
+
+function toUserFacingError(error, file) {
+  if (error && typeof error === 'object' && 'name' in error) {
+    if (error.name === 'NotReadableError') {
+      return new Error(
+        `The browser could not read "${file.name}". If it is being updated by another app, copy it to a regular local folder and try again.`
+      );
+    }
+
+    if (error.name === 'AbortError') {
+      return new Error(`Reading "${file.name}" was interrupted. Please try again.`);
+    }
+  }
+
+  return error instanceof Error ? error : new Error('Failed to parse file.');
+}
 
 function formatValue(value) {
   if (Array.isArray(value)) {
@@ -100,6 +119,58 @@ function formatValue(value) {
   }
 
   return String(value);
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.setAttribute('readonly', '');
+  textArea.style.position = 'fixed';
+  textArea.style.opacity = '0';
+  textArea.style.pointerEvents = 'none';
+  document.body.append(textArea);
+  textArea.select();
+
+  const succeeded = document.execCommand('copy');
+  textArea.remove();
+
+  if (!succeeded) {
+    throw new Error('Copy to clipboard is not available in this browser.');
+  }
+}
+
+function createCopyButton(valueText) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'copy-value-button';
+  button.textContent = 'Copy';
+  button.setAttribute('aria-label', 'Copy value to clipboard');
+
+  let resetTimerId = null;
+
+  button.addEventListener('click', async () => {
+    try {
+      await copyText(valueText);
+      button.textContent = 'Copied';
+      button.dataset.state = 'success';
+    } catch (error) {
+      button.textContent = 'Failed';
+      button.dataset.state = 'error';
+    }
+
+    window.clearTimeout(resetTimerId);
+    resetTimerId = window.setTimeout(() => {
+      button.textContent = 'Copy';
+      delete button.dataset.state;
+    }, COPY_RESET_DELAY_MS);
+  });
+
+  return button;
 }
 
 function createSummaryCard(label, value) {
@@ -163,9 +234,35 @@ function renderMetadata(entries) {
       : entry.valueTypeName;
 
     const valueCell = document.createElement('td');
-    const pre = document.createElement('pre');
-    pre.textContent = formatValue(entry.value);
-    valueCell.append(pre);
+    valueCell.className = 'value-cell';
+    const valueText = formatValue(entry.value);
+    const shouldCollapse =
+      valueText.length >= COLLAPSIBLE_VALUE_LENGTH ||
+      (Array.isArray(entry.value) && entry.value.length >= COLLAPSIBLE_ARRAY_LENGTH);
+    const valueContent = document.createElement('div');
+    valueContent.className = 'value-content';
+    const copyButton = createCopyButton(valueText);
+
+    if (shouldCollapse) {
+      const details = document.createElement('details');
+      details.className = 'value-details';
+
+      const summary = document.createElement('summary');
+      summary.className = 'value-summary';
+      summary.textContent = `Show value (${valueText.length.toLocaleString()} chars)`;
+
+      const pre = document.createElement('pre');
+      pre.textContent = valueText;
+
+      details.append(summary, pre);
+      valueContent.append(details);
+    } else {
+      const pre = document.createElement('pre');
+      pre.textContent = valueText;
+      valueContent.append(pre);
+    }
+
+    valueCell.append(copyButton, valueContent);
 
     row.append(keyCell, typeCell, valueCell);
     metadataBody.append(row);
@@ -216,8 +313,7 @@ async function handleFile(file) {
   setStatus(`Reading ${file.name}...`);
 
   try {
-    const buffer = await file.arrayBuffer();
-    const result = parseGguf(buffer);
+    const result = await parseGguf(file);
 
     latestResult = result;
     renderSummary(result, file);
@@ -230,7 +326,9 @@ async function handleFile(file) {
     summaryPanel.classList.add('hidden');
     metadataPanel.classList.add('hidden');
     tensorPanel.classList.add('hidden');
-    setStatus(error instanceof Error ? error.message : 'Failed to parse file.', true);
+    setStatus(toUserFacingError(error, file).message, true);
+  } finally {
+    fileInput.value = '';
   }
 }
 
