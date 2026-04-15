@@ -245,21 +245,26 @@ button:hover {
 }
 
 .value-cell {
-  position: relative;
+  display: block;
 }
 
 .value-content {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.95rem;
   min-width: 0;
+  max-width: 100%;
 }
 
 .copy-value-button {
-  position: absolute;
-  top: 0.65rem;
-  right: 0.75rem;
+  align-self: flex-start;
+  margin-top: 0.1rem;
+  margin-left: 0.2rem;
   padding: 0.35rem 0.7rem;
   font-size: 0.86rem;
   opacity: 0;
-  transform: translateY(-2px);
+  transform: translateX(-4px);
+  background: rgba(180, 79, 44, 0.82);
   transition: opacity 140ms ease, transform 140ms ease, background 140ms ease;
 }
 
@@ -274,12 +279,12 @@ button:hover {
 .metadata-table tr:hover .copy-value-button,
 .value-cell:focus-within .copy-value-button {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(0);
 }
 
 .value-details {
   display: block;
-  padding-right: 5rem;
+  min-width: 0;
 }
 
 .value-summary {
@@ -305,9 +310,8 @@ button:hover {
   margin-top: 0.65rem;
 }
 
-.value-cell > pre,
 .value-content > pre {
-  padding-right: 5rem;
+  min-width: 0;
 }
 
 .mono {
@@ -337,14 +341,7 @@ button:hover {
 
   .copy-value-button {
     opacity: 1;
-    position: static;
-    margin-bottom: 0.65rem;
+    margin-top: 0;
     transform: none;
-  }
-
-  .value-details,
-  .value-cell > pre,
-  .value-content > pre {
-    padding-right: 0;
   }
 }

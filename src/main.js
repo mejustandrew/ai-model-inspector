@@ -262,7 +262,7 @@ function renderMetadata(entries) {
       valueContent.append(pre);
     }
 
-    valueCell.append(copyButton, valueContent);
+    valueCell.append(valueContent, copyButton);
 
     row.append(keyCell, typeCell, valueCell);
     metadataBody.append(row);
