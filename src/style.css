@@ -1,13 +1,13 @@
 :root {
-  color-scheme: light;
-  --bg: #f4efe8;
-  --panel: rgba(255, 250, 245, 0.9);
-  --panel-border: rgba(104, 79, 58, 0.18);
-  --ink: #1f1b18;
-  --muted: #6c5a4e;
-  --accent: #b44f2c;
-  --accent-strong: #82361d;
-  --shadow: 0 18px 60px rgba(74, 49, 29, 0.12);
+  color-scheme: dark;
+  --bg: #081321;
+  --panel: rgba(11, 27, 46, 0.88);
+  --panel-border: rgba(110, 163, 255, 0.16);
+  --ink: #d3dceb;
+  --muted: #93a4bc;
+  --accent: #2f7cf6;
+  --accent-strong: #7ab0ff;
+  --shadow: 0 18px 60px rgba(1, 8, 19, 0.42);
   --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
   --sans: "Space Grotesk", "Segoe UI", sans-serif;
 }
@@ -26,9 +26,9 @@ body {
   font-family: var(--sans);
   color: var(--ink);
   background:
-    radial-gradient(circle at top left, rgba(255, 202, 165, 0.45), transparent 28%),
-    radial-gradient(circle at top right, rgba(244, 145, 91, 0.16), transparent 24%),
-    linear-gradient(180deg, #f8f3ee 0%, var(--bg) 45%, #efe5d8 100%);
+    radial-gradient(circle at top left, rgba(74, 129, 255, 0.28), transparent 26%),
+    radial-gradient(circle at top right, rgba(37, 94, 187, 0.2), transparent 24%),
+    linear-gradient(180deg, #10233a 0%, var(--bg) 45%, #050d18 100%);
 }
 
 body::before {
@@ -36,8 +36,8 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(163, 197, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(163, 197, 255, 0.08) 1px, transparent 1px);
   background-size: 28px 28px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 75%);
 }
@@ -63,14 +63,14 @@ body::before {
 
 .hero h1 {
   margin: 0;
-  font-size: clamp(2.4rem, 7vw, 4.9rem);
-  line-height: 0.95;
-  max-width: 12ch;
+  font-size: clamp(2rem, 5.4vw, 3.6rem);
+  line-height: 1;
+  max-width: 18ch;
 }
 
 .lede {
   margin: 1rem 0 0;
-  max-width: 62ch;
+  max-width: 78ch;
   color: var(--muted);
   font-size: 1.05rem;
 }
@@ -95,10 +95,10 @@ body::before {
   min-height: 220px;
   padding: 2rem;
   border-radius: 20px;
-  border: 2px dashed rgba(180, 79, 44, 0.36);
+  border: 2px dashed rgba(81, 141, 255, 0.42);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.75), rgba(255, 240, 229, 0.82)),
-    linear-gradient(135deg, rgba(180, 79, 44, 0.08), transparent);
+    linear-gradient(135deg, rgba(18, 41, 70, 0.94), rgba(9, 24, 43, 0.94)),
+    linear-gradient(135deg, rgba(47, 124, 246, 0.14), transparent);
   text-align: center;
   cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
@@ -107,10 +107,10 @@ body::before {
 .dropzone:hover,
 .dropzone.dragging {
   transform: translateY(-2px);
-  border-color: rgba(180, 79, 44, 0.82);
+  border-color: rgba(122, 176, 255, 0.86);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 235, 219, 0.94)),
-    linear-gradient(135deg, rgba(180, 79, 44, 0.12), transparent);
+    linear-gradient(135deg, rgba(23, 51, 86, 0.98), rgba(11, 28, 49, 0.98)),
+    linear-gradient(135deg, rgba(47, 124, 246, 0.2), transparent);
 }
 
 .dropzone input {
@@ -132,7 +132,7 @@ body::before {
 }
 
 .status[data-state='error'] {
-  color: #8f1d1d;
+  color: #ff8a8a;
 }
 
 .summary-grid {
@@ -145,8 +145,8 @@ body::before {
 .summary-card {
   padding: 1rem;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(104, 79, 58, 0.1);
+  background: rgba(16, 36, 61, 0.82);
+  border: 1px solid rgba(110, 163, 255, 0.14);
 }
 
 .summary-label {
@@ -194,9 +194,10 @@ button {
 input[type='search'] {
   min-width: min(320px, 42vw);
   padding: 0.8rem 0.9rem;
-  border: 1px solid rgba(104, 79, 58, 0.18);
+  border: 1px solid rgba(110, 163, 255, 0.18);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(8, 20, 36, 0.92);
+  color: var(--ink);
 }
 
 button {
@@ -210,6 +211,7 @@ button {
 
 button:hover {
   background: var(--accent-strong);
+  color: #071322;
 }
 
 .metadata-table-wrap {
@@ -225,7 +227,7 @@ button:hover {
 .metadata-table th,
 .metadata-table td {
   padding: 0.95rem 0.75rem;
-  border-top: 1px solid rgba(104, 79, 58, 0.12);
+  border-top: 1px solid rgba(110, 163, 255, 0.12);
   text-align: left;
   vertical-align: top;
 }
@@ -264,16 +266,16 @@ button:hover {
   font-size: 0.86rem;
   opacity: 0;
   transform: translateX(-4px);
-  background: rgba(180, 79, 44, 0.82);
+  background: rgba(47, 124, 246, 0.72);
   transition: opacity 140ms ease, transform 140ms ease, background 140ms ease;
 }
 
 .copy-value-button[data-state='success'] {
-  background: #2e8b57;
+  background: rgba(57, 168, 110, 0.88);
 }
 
 .copy-value-button[data-state='error'] {
-  background: #8f1d1d;
+  background: rgba(175, 58, 58, 0.88);
 }
 
 .metadata-table tr:hover .copy-value-button,

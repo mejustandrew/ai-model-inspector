@@ -12,6 +12,7 @@ app.innerHTML = `
         Drop a <code>.gguf</code> file to extract its header, key-value metadata, and tensor index
         without uploading anything to a server.
       </p>
+      <p class="lede">Your model, your data.</p>
     </section>
 
     <section class="panel upload-panel">
