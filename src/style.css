@@ -168,7 +168,7 @@ body::before {
   justify-content: space-between;
   gap: 1rem;
   align-items: end;
-  padding: 1.2rem 1.2rem 0;
+  padding: 1.2rem 1.2rem 0.45rem;
 }
 
 .panel-head h2 {
@@ -223,15 +223,34 @@ button:hover {
 }
 
 .panel-toggle {
-  padding: 0.65rem 0.95rem;
-  background: rgba(47, 124, 246, 0.2);
-  color: var(--ink);
-  border: 1px solid rgba(110, 163, 255, 0.2);
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(47, 124, 246, 0.08);
+  color: var(--muted);
+  border: 1px solid rgba(110, 163, 255, 0.14);
 }
 
 .panel-toggle:hover {
-  background: rgba(122, 176, 255, 0.34);
+  background: rgba(122, 176, 255, 0.16);
   color: var(--ink);
+}
+
+.panel-toggle::before {
+  content: '';
+  width: 0.55rem;
+  height: 0.55rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+  transition: transform 140ms ease;
+}
+
+.collapsible-panel[data-collapsed='true'] .panel-toggle::before {
+  transform: rotate(-45deg) translateY(1px);
 }
 
 .metadata-table-wrap {

@@ -32,9 +32,13 @@ app.innerHTML = `
           <p>Quick model details at a glance.</p>
         </div>
         <div class="panel-actions">
-          <button class="panel-toggle" type="button" data-panel-toggle aria-expanded="true">
-            Collapse
-          </button>
+          <button
+            class="panel-toggle"
+            type="button"
+            data-panel-toggle
+            aria-expanded="true"
+            aria-label="Collapse section"
+          ></button>
         </div>
       </div>
       <div class="panel-body">
@@ -51,9 +55,13 @@ app.innerHTML = `
         <div class="panel-actions">
           <input id="metadata-filter" type="search" placeholder="Filter by key or value" />
           <button id="download-json" type="button">Download JSON</button>
-          <button class="panel-toggle" type="button" data-panel-toggle aria-expanded="true">
-            Collapse
-          </button>
+          <button
+            class="panel-toggle"
+            type="button"
+            data-panel-toggle
+            aria-expanded="true"
+            aria-label="Collapse section"
+          ></button>
         </div>
       </div>
       <div class="panel-body">
@@ -79,9 +87,13 @@ app.innerHTML = `
           <p>Model interface as declared by the graph.</p>
         </div>
         <div class="panel-actions">
-          <button class="panel-toggle" type="button" data-panel-toggle aria-expanded="true">
-            Collapse
-          </button>
+          <button
+            class="panel-toggle"
+            type="button"
+            data-panel-toggle
+            aria-expanded="true"
+            aria-label="Collapse section"
+          ></button>
         </div>
       </div>
       <div class="panel-body">
@@ -107,9 +119,13 @@ app.innerHTML = `
           <p id="detail-subtitle">First 25 tensor descriptors from the file.</p>
         </div>
         <div class="panel-actions">
-          <button class="panel-toggle" type="button" data-panel-toggle aria-expanded="true">
-            Collapse
-          </button>
+          <button
+            class="panel-toggle"
+            type="button"
+            data-panel-toggle
+            aria-expanded="true"
+            aria-label="Collapse section"
+          ></button>
         </div>
       </div>
       <div class="panel-body">
@@ -153,8 +169,8 @@ function setPanelCollapsed(panel, collapsed) {
   panel.dataset.collapsed = collapsed ? 'true' : 'false';
   const toggleButton = panel.querySelector('[data-panel-toggle]');
   if (toggleButton) {
-    toggleButton.textContent = collapsed ? 'Expand' : 'Collapse';
     toggleButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    toggleButton.setAttribute('aria-label', collapsed ? 'Expand section' : 'Collapse section');
   }
 }
 
