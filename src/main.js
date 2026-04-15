@@ -1,77 +1,124 @@
 import './style.css';
 import { parseGguf } from './ggufParser.js';
+import { parseOnnx } from './onnxParser.js';
 
 const app = document.querySelector('#app');
 
 app.innerHTML = `
   <main class="shell">
     <section class="hero">
-      <p class="eyebrow">Static GGUF Inspector</p>
-      <h1>Parse GGUF metadata directly in your browser.</h1>
+      <p class="eyebrow">Static Model Inspector</p>
+      <h1>Parse model metadata directly in your browser.</h1>
       <p class="lede">
-        Drop a <code>.gguf</code> file to extract its header, key-value metadata, and tensor index
-        without uploading anything to a server.
+        Drop a <code>.gguf</code> or <code>.onnx</code> file to inspect headers, metadata, graph
+        structure, and tensor or node indexes without uploading anything to a server.
       </p>
       <p class="lede">Your model, your data.</p>
     </section>
 
     <section class="panel upload-panel">
       <label class="dropzone" for="file-input" id="dropzone">
-        <input id="file-input" type="file" accept=".gguf,application/octet-stream" />
-        <span class="dropzone-title">Choose a GGUF file</span>
+        <input id="file-input" type="file" accept=".gguf,.onnx,application/octet-stream" />
+        <span class="dropzone-title">Choose a GGUF or ONNX file</span>
         <span class="dropzone-copy">or drag and drop it here</span>
       </label>
-      <div class="status" id="status">Waiting for a GGUF file.</div>
+      <div class="status" id="status">Waiting for a GGUF or ONNX file.</div>
     </section>
 
-    <section class="panel hidden" id="summary-panel">
-      <div class="summary-grid" id="summary-grid"></div>
-    </section>
-
-    <section class="panel hidden" id="metadata-panel">
+    <section class="panel hidden collapsible-panel" id="summary-panel" data-collapsed="false">
       <div class="panel-head">
         <div>
-          <h2>Metadata</h2>
-          <p>Search extracted key-value pairs.</p>
+          <h2>Summary</h2>
+          <p>Quick model details at a glance.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="panel-toggle" type="button" data-panel-toggle aria-expanded="true">
+            Collapse
+          </button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="summary-grid" id="summary-grid"></div>
+      </div>
+    </section>
+
+    <section class="panel hidden collapsible-panel" id="metadata-panel" data-collapsed="false">
+      <div class="panel-head">
+        <div>
+          <h2 id="metadata-title">Metadata</h2>
+          <p id="metadata-subtitle">Search extracted key-value pairs.</p>
         </div>
         <div class="panel-actions">
           <input id="metadata-filter" type="search" placeholder="Filter by key or value" />
           <button id="download-json" type="button">Download JSON</button>
+          <button class="panel-toggle" type="button" data-panel-toggle aria-expanded="true">
+            Collapse
+          </button>
         </div>
       </div>
-      <div class="metadata-table-wrap">
-        <table class="metadata-table">
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Type</th>
-              <th>Value</th>
-            </tr>
-          </thead>
-          <tbody id="metadata-body"></tbody>
-        </table>
+      <div class="panel-body">
+        <div class="metadata-table-wrap">
+          <table class="metadata-table">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Type</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody id="metadata-body"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
-    <section class="panel hidden" id="tensor-panel">
+    <section class="panel hidden collapsible-panel" id="graph-io-panel" data-collapsed="false">
       <div class="panel-head">
         <div>
-          <h2>Tensor Index</h2>
-          <p>First 25 tensor descriptors from the file.</p>
+          <h2>Graph Inputs & Outputs</h2>
+          <p>Model interface as declared by the graph.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="panel-toggle" type="button" data-panel-toggle aria-expanded="true">
+            Collapse
+          </button>
         </div>
       </div>
-      <div class="metadata-table-wrap">
-        <table class="metadata-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Dimensions</th>
-              <th>GGML Type</th>
-              <th>Offset</th>
-            </tr>
-          </thead>
-          <tbody id="tensor-body"></tbody>
-        </table>
+      <div class="panel-body">
+        <div class="metadata-table-wrap">
+          <table class="metadata-table">
+            <thead>
+              <tr>
+                <th>Direction</th>
+                <th>Name</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody id="graph-io-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel hidden collapsible-panel" id="detail-panel" data-collapsed="false">
+      <div class="panel-head">
+        <div>
+          <h2 id="detail-title">Tensor Index</h2>
+          <p id="detail-subtitle">First 25 tensor descriptors from the file.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="panel-toggle" type="button" data-panel-toggle aria-expanded="true">
+            Collapse
+          </button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="metadata-table-wrap">
+          <table class="metadata-table">
+            <thead id="detail-head"></thead>
+            <tbody id="detail-body"></tbody>
+          </table>
+        </div>
       </div>
     </section>
   </main>
@@ -83,16 +130,39 @@ const status = document.querySelector('#status');
 const summaryPanel = document.querySelector('#summary-panel');
 const summaryGrid = document.querySelector('#summary-grid');
 const metadataPanel = document.querySelector('#metadata-panel');
+const metadataTitle = document.querySelector('#metadata-title');
+const metadataSubtitle = document.querySelector('#metadata-subtitle');
 const metadataBody = document.querySelector('#metadata-body');
 const metadataFilter = document.querySelector('#metadata-filter');
-const tensorPanel = document.querySelector('#tensor-panel');
-const tensorBody = document.querySelector('#tensor-body');
+const graphIoPanel = document.querySelector('#graph-io-panel');
+const graphIoBody = document.querySelector('#graph-io-body');
+const detailPanel = document.querySelector('#detail-panel');
+const detailTitle = document.querySelector('#detail-title');
+const detailSubtitle = document.querySelector('#detail-subtitle');
+const detailHead = document.querySelector('#detail-head');
+const detailBody = document.querySelector('#detail-body');
 const downloadJsonButton = document.querySelector('#download-json');
+const collapsiblePanels = document.querySelectorAll('.collapsible-panel');
 
 let latestResult = null;
 const COLLAPSIBLE_VALUE_LENGTH = 2000;
 const COLLAPSIBLE_ARRAY_LENGTH = 40;
 const COPY_RESET_DELAY_MS = 1500;
+
+function setPanelCollapsed(panel, collapsed) {
+  panel.dataset.collapsed = collapsed ? 'true' : 'false';
+  const toggleButton = panel.querySelector('[data-panel-toggle]');
+  if (toggleButton) {
+    toggleButton.textContent = collapsed ? 'Expand' : 'Collapse';
+    toggleButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+}
+
+function expandAllPanels() {
+  collapsiblePanels.forEach((panel) => {
+    setPanelCollapsed(panel, false);
+  });
+}
 
 function toUserFacingError(error, file) {
   if (error && typeof error === 'object' && 'name' in error) {
@@ -193,14 +263,29 @@ function createSummaryCard(label, value) {
 function renderSummary(result, file) {
   summaryGrid.innerHTML = '';
 
-  const cards = [
-    ['File', file.name],
-    ['Version', String(result.header.version)],
-    ['Metadata entries', String(result.header.metadataCount)],
-    ['Tensor count', String(result.header.tensorCount)],
-    ['Parsed bytes', result.header.bytesRead.toLocaleString()],
-    ['File size', file.size.toLocaleString()],
-  ];
+  const cards =
+    result.kind === 'gguf'
+      ? [
+          ['Format', 'GGUF'],
+          ['File', file.name],
+          ['Version', String(result.header.version)],
+          ['Metadata entries', String(result.header.metadataCount)],
+          ['Tensor count', String(result.header.tensorCount)],
+          ['Parsed bytes', result.header.bytesRead.toLocaleString()],
+          ['File size', file.size.toLocaleString()],
+        ]
+      : [
+          ['Format', 'ONNX'],
+          ['File', file.name],
+          ['IR version', result.header.irVersion],
+          ['Opsets', String(result.header.opsetCount)],
+          ['Metadata entries', String(result.header.metadataCount)],
+          ['Inputs', String(result.header.inputCount)],
+          ['Outputs', String(result.header.outputCount)],
+          ['Nodes', String(result.header.nodeCount)],
+          ['Initializers', String(result.header.initializerCount)],
+          ['File size', file.size.toLocaleString()],
+        ];
 
   cards.forEach(([label, value]) => {
     summaryGrid.append(createSummaryCard(label, value));
@@ -264,7 +349,6 @@ function renderMetadata(entries) {
     }
 
     valueCell.append(valueContent, copyButton);
-
     row.append(keyCell, typeCell, valueCell);
     metadataBody.append(row);
   }
@@ -272,8 +356,49 @@ function renderMetadata(entries) {
   metadataPanel.classList.remove('hidden');
 }
 
-function renderTensors(tensors) {
-  tensorBody.innerHTML = '';
+function renderGraphIo(items) {
+  graphIoBody.innerHTML = '';
+
+  for (const item of items) {
+    const row = document.createElement('tr');
+
+    const directionCell = document.createElement('td');
+    directionCell.textContent = item.direction;
+
+    const nameCell = document.createElement('td');
+    nameCell.className = 'mono';
+    nameCell.textContent = item.name;
+
+    const typeCell = document.createElement('td');
+    const pre = document.createElement('pre');
+    pre.textContent = item.typeDescription || 'unknown';
+    typeCell.append(pre);
+
+    row.append(directionCell, nameCell, typeCell);
+    graphIoBody.append(row);
+  }
+
+  graphIoPanel.classList.remove('hidden');
+}
+
+function setDetailTableHeaders(labels) {
+  detailHead.innerHTML = '';
+  const row = document.createElement('tr');
+
+  labels.forEach((label) => {
+    const th = document.createElement('th');
+    th.textContent = label;
+    row.append(th);
+  });
+
+  detailHead.append(row);
+}
+
+function renderGgufTensors(tensors) {
+  detailBody.innerHTML = '';
+  detailTitle.textContent = 'Tensor Index';
+  detailSubtitle.textContent = 'First 25 tensor descriptors from the file.';
+  setDetailTableHeaders(['Name', 'Dimensions', 'GGML Type', 'Offset']);
 
   const preview = tensors.slice(0, 25);
 
@@ -295,10 +420,87 @@ function renderTensors(tensors) {
     offsetCell.textContent = tensor.offset;
 
     row.append(nameCell, dimensionsCell, typeCell, offsetCell);
-    tensorBody.append(row);
+    detailBody.append(row);
   }
 
-  tensorPanel.classList.remove('hidden');
+  detailPanel.classList.remove('hidden');
+}
+
+function renderOnnxNodes(nodes) {
+  detailBody.innerHTML = '';
+  detailTitle.textContent = 'Graph Nodes';
+  detailSubtitle.textContent = 'First 50 nodes from the ONNX graph.';
+  setDetailTableHeaders(['Name', 'Op Type', 'Inputs', 'Outputs']);
+
+  const preview = nodes.slice(0, 50);
+
+  for (const node of preview) {
+    const row = document.createElement('tr');
+
+    const nameCell = document.createElement('td');
+    nameCell.className = 'mono';
+    nameCell.textContent = node.name || '(unnamed)';
+
+    const opTypeCell = document.createElement('td');
+    opTypeCell.textContent = node.domain ? `${node.domain}::${node.opType}` : node.opType;
+
+    const inputsCell = document.createElement('td');
+    const inputPre = document.createElement('pre');
+    inputPre.textContent = node.inputs.join('\n') || '(none)';
+    inputsCell.append(inputPre);
+
+    const outputsCell = document.createElement('td');
+    const outputPre = document.createElement('pre');
+    outputPre.textContent = node.outputs.join('\n') || '(none)';
+    outputsCell.append(outputPre);
+
+    row.append(nameCell, opTypeCell, inputsCell, outputsCell);
+    detailBody.append(row);
+  }
+
+  detailPanel.classList.remove('hidden');
+}
+
+function resetPanels() {
+  expandAllPanels();
+  summaryPanel.classList.add('hidden');
+  metadataPanel.classList.add('hidden');
+  graphIoPanel.classList.add('hidden');
+  detailPanel.classList.add('hidden');
+}
+
+function renderResult(result, file) {
+  renderSummary(result, file);
+
+  metadataTitle.textContent = result.kind === 'gguf' ? 'Metadata' : 'Model Properties';
+  metadataSubtitle.textContent =
+    result.kind === 'gguf'
+      ? 'Search extracted key-value pairs.'
+      : 'Search model properties and ONNX metadata.';
+  renderMetadata(result.metadataEntries);
+
+  if (result.kind === 'gguf') {
+    graphIoPanel.classList.add('hidden');
+    renderGgufTensors(result.tensors);
+    return;
+  }
+
+  renderGraphIo(result.graph.interface);
+  renderOnnxNodes(result.graph.nodes);
+}
+
+async function parseModelFile(file) {
+  const lowerName = file.name.toLowerCase();
+
+  if (lowerName.endsWith('.gguf')) {
+    return parseGguf(file);
+  }
+
+  if (lowerName.endsWith('.onnx')) {
+    return parseOnnx(file);
+  }
+
+  throw new Error('Unsupported file type. Please choose a .gguf or .onnx file.');
 }
 
 function setStatus(message, isError = false) {
@@ -314,19 +516,21 @@ async function handleFile(file) {
   setStatus(`Reading ${file.name}...`);
 
   try {
-    const result = await parseGguf(file);
-
+    const result = await parseModelFile(file);
     latestResult = result;
-    renderSummary(result, file);
-    renderMetadata(result.metadataEntries);
-    renderTensors(result.tensors);
+    resetPanels();
+    renderResult(result, file);
 
-    setStatus(`Parsed ${result.header.metadataCount} metadata entries from ${file.name}.`);
+    if (result.kind === 'gguf') {
+      setStatus(`Parsed ${result.header.metadataCount} metadata entries from ${file.name}.`);
+    } else {
+      setStatus(
+        `Parsed ${result.header.nodeCount} graph nodes and ${result.header.metadataCount} metadata entries from ${file.name}.`
+      );
+    }
   } catch (error) {
     latestResult = null;
-    summaryPanel.classList.add('hidden');
-    metadataPanel.classList.add('hidden');
-    tensorPanel.classList.add('hidden');
+    resetPanels();
     setStatus(toUserFacingError(error, file).message, true);
   } finally {
     fileInput.value = '';
@@ -355,7 +559,7 @@ downloadJsonButton.addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'gguf-metadata.json';
+  link.download = latestResult.kind === 'onnx' ? 'onnx-metadata.json' : 'gguf-metadata.json';
   link.click();
   URL.revokeObjectURL(url);
 });
@@ -377,4 +581,16 @@ downloadJsonButton.addEventListener('click', () => {
 dropzone.addEventListener('drop', (event) => {
   const [file] = event.dataTransfer.files;
   handleFile(file);
+});
+
+collapsiblePanels.forEach((panel) => {
+  const toggleButton = panel.querySelector('[data-panel-toggle]');
+  if (!toggleButton) {
+    return;
+  }
+
+  toggleButton.addEventListener('click', () => {
+    const collapsed = panel.dataset.collapsed === 'true';
+    setPanelCollapsed(panel, !collapsed);
+  });
 });

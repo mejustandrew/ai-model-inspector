@@ -314,6 +314,7 @@ export async function parseGguf(blob) {
   }
 
   return {
+    kind: 'gguf',
     header: {
       magic,
       version,
