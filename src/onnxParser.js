@@ -1,4 +1,7 @@
 const TEXT_DECODER = new TextDecoder('utf-8', { fatal: false });
+const VARINT_SHIFT_STEP = BigInt(7);
+const MAX_VARINT_SHIFT = BigInt(70);
+const ZERO_BIGINT = BigInt(0);
 
 const TENSOR_DATA_TYPES = {
   0: 'undefined',
@@ -45,8 +48,8 @@ class ProtoReader {
   }
 
   readVarint() {
-    let shift = 0n;
-    let result = 0n;
+    let shift = ZERO_BIGINT;
+    let result = ZERO_BIGINT;
 
     while (true) {
       const byte = this.readByte();
@@ -56,8 +59,8 @@ class ProtoReader {
         return result;
       }
 
-      shift += 7n;
-      if (shift > 70n) {
+      shift += VARINT_SHIFT_STEP;
+      if (shift > MAX_VARINT_SHIFT) {
         throw new Error('Invalid ONNX protobuf varint');
       }
     }
