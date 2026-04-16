@@ -231,7 +231,7 @@ button:hover {
   justify-content: center;
   background: rgba(47, 124, 246, 0.08);
   color: var(--muted);
-  border: 1px solid rgba(110, 163, 255, 0.14);
+  border: 0;
 }
 
 .panel-toggle:hover {
