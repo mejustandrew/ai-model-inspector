@@ -8,12 +8,37 @@ app.innerHTML = `
   <main class="shell">
     <section class="hero">
       <p class="eyebrow">Static Model Inspector</p>
-      <h1>Parse model metadata directly in your browser.</h1>
+      <h1>Private AI model inspection directly in your browser.</h1>
       <p class="lede">
         Drop a <code>.gguf</code> or <code>.onnx</code> file to inspect headers, metadata, graph
         structure, and tensor or node indexes without uploading anything to a server.
       </p>
+      <p class="lede">
+        Built for private AI model inspection and local model analysis when you need to review
+        GGUF or ONNX files offline, on-device, and under your control.
+      </p>
       <p class="lede">Your model, your data.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Local AI Model Analysis</h2>
+          <p>Privacy-first inspection for GGUF and ONNX workflows.</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        <p>
+          This browser-based inspector helps with private AI model inspection by parsing model
+          metadata locally, showing tensor indexes for GGUF files, and exposing graph inputs,
+          outputs, and nodes for ONNX models.
+        </p>
+        <p>
+          Use it to analyze local model files, verify exported metadata, review architecture
+          details, and troubleshoot model packaging without sending sensitive files to a remote
+          service.
+        </p>
+      </div>
     </section>
 
     <section class="panel upload-panel">
