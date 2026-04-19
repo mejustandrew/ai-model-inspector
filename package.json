@@ -10,5 +10,8 @@
   },
   "devDependencies": {
     "vite": "^2.9.18"
+  },
+  "dependencies": {
+    "hash-wasm": "^4.12.0"
   }
 }

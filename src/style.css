@@ -122,6 +122,25 @@ body::before {
   font-weight: 700;
 }
 
+.dropzone-selection {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  max-width: min(100%, 60rem);
+  color: var(--accent-strong);
+  font-size: 0.94rem;
+  word-break: break-word;
+}
+
+.dropzone-file {
+  color: var(--ink);
+}
+
+.dropzone-hash {
+  color: var(--accent-strong);
+}
+
 .dropzone-copy {
   color: var(--muted);
 }

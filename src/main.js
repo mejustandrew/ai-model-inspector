@@ -20,31 +20,15 @@ app.innerHTML = `
       <p class="lede">Your model, your data.</p>
     </section>
 
-    <section class="panel">
-      <div class="panel-head">
-        <div>
-          <h2>Local AI Model Analysis</h2>
-          <p>Privacy-first inspection for GGUF and ONNX workflows.</p>
-        </div>
-      </div>
-      <div class="panel-body">
-        <p>
-          This browser-based inspector helps with private AI model inspection by parsing model
-          metadata locally, showing tensor indexes for GGUF files, and exposing graph inputs,
-          outputs, and nodes for ONNX models.
-        </p>
-        <p>
-          Use it to analyze local model files, verify exported metadata, review architecture
-          details, and troubleshoot model packaging without sending sensitive files to a remote
-          service.
-        </p>
-      </div>
-    </section>
 
     <section class="panel upload-panel">
       <label class="dropzone" for="file-input" id="dropzone">
         <input id="file-input" type="file" accept=".gguf,.onnx,application/octet-stream" />
         <span class="dropzone-title">Choose a GGUF or ONNX file</span>
+        <div class="dropzone-selection hidden" id="dropzone-selection">
+          <span class="dropzone-file mono" id="dropzone-file"></span>
+          <span class="dropzone-hash mono" id="dropzone-hash"></span>
+        </div>
         <span class="dropzone-copy">or drag and drop it here</span>
       </label>
       <div class="status" id="status">Waiting for a GGUF or ONNX file.</div>
@@ -167,6 +151,9 @@ app.innerHTML = `
 
 const fileInput = document.querySelector('#file-input');
 const dropzone = document.querySelector('#dropzone');
+const dropzoneSelection = document.querySelector('#dropzone-selection');
+const dropzoneFile = document.querySelector('#dropzone-file');
+const dropzoneHash = document.querySelector('#dropzone-hash');
 const status = document.querySelector('#status');
 const summaryPanel = document.querySelector('#summary-panel');
 const summaryGrid = document.querySelector('#summary-grid');
@@ -186,6 +173,8 @@ const downloadJsonButton = document.querySelector('#download-json');
 const collapsiblePanels = document.querySelectorAll('.collapsible-panel');
 
 let latestResult = null;
+let activeFileToken = 0;
+let hashWorker = null;
 const COLLAPSIBLE_VALUE_LENGTH = 2000;
 const COLLAPSIBLE_ARRAY_LENGTH = 40;
 const COPY_RESET_DELAY_MS = 1500;
@@ -299,6 +288,102 @@ function createSummaryCard(label, value) {
 
   card.append(labelNode, valueNode);
   return card;
+}
+
+function resetUploadSelection() {
+  dropzoneFile.textContent = '';
+  dropzoneHash.textContent = '';
+  dropzoneSelection.classList.add('hidden');
+}
+
+function renderUploadSelection(file, hashState = { phase: 'idle' }) {
+  dropzoneFile.textContent = file.name;
+
+  switch (hashState.phase) {
+    case 'hashing':
+      dropzoneHash.textContent = `SHA-256: calculating... ${hashState.progressText}`;
+      break;
+    case 'complete':
+      dropzoneHash.textContent = `SHA-256: ${hashState.value}`;
+      break;
+    case 'error':
+      dropzoneHash.textContent = `SHA-256 unavailable: ${hashState.message}`;
+      break;
+    default:
+      dropzoneHash.textContent = 'SHA-256: pending';
+      break;
+  }
+
+  dropzoneSelection.classList.remove('hidden');
+}
+
+function terminateHashWorker() {
+  if (!hashWorker) {
+    return;
+  }
+
+  hashWorker.terminate();
+  hashWorker = null;
+}
+
+function formatHashProgress(processedBytes, totalBytes) {
+  if (!totalBytes) {
+    return '0%';
+  }
+
+  const percent = Math.max(0, Math.min(100, (processedBytes / totalBytes) * 100));
+  return `${percent.toFixed(percent >= 10 || percent === 0 ? 0 : 1)}%`;
+}
+
+function startHashing(file, fileToken, result) {
+  terminateHashWorker();
+  hashWorker = new Worker(new URL('./hashWorker.js', import.meta.url), { type: 'module' });
+
+  hashWorker.onmessage = (event) => {
+    if (fileToken !== activeFileToken) {
+      return;
+    }
+
+    const message = event.data ?? {};
+
+    if (message.type === 'progress') {
+      renderUploadSelection(file, {
+        phase: 'hashing',
+        progressText: formatHashProgress(message.processedBytes, message.totalBytes),
+      });
+      return;
+    }
+
+    if (message.type === 'complete') {
+      result.fileHash = {
+        algorithm: message.algorithm,
+        value: message.value,
+      };
+      renderUploadSelection(file, { phase: 'complete', value: message.value });
+      terminateHashWorker();
+      return;
+    }
+
+    if (message.type === 'error') {
+      renderUploadSelection(file, { phase: 'error', message: message.message });
+      terminateHashWorker();
+    }
+  };
+
+  hashWorker.onerror = () => {
+    if (fileToken !== activeFileToken) {
+      return;
+    }
+
+    renderUploadSelection(file, {
+      phase: 'error',
+      message: 'The browser could not start the hashing worker.',
+    });
+    terminateHashWorker();
+  };
+
+  renderUploadSelection(file, { phase: 'hashing', progressText: '0%' });
+  hashWorker.postMessage({ type: 'hash', file });
 }
 
 function renderSummary(result, file) {
@@ -554,23 +639,38 @@ async function handleFile(file) {
     return;
   }
 
+  const fileToken = activeFileToken + 1;
+  activeFileToken = fileToken;
+  terminateHashWorker();
+  renderUploadSelection(file);
   setStatus(`Reading ${file.name}...`);
 
   try {
     const result = await parseModelFile(file);
+    if (fileToken !== activeFileToken) {
+      return;
+    }
+
     latestResult = result;
     resetPanels();
     renderResult(result, file);
+    startHashing(file, fileToken, result);
 
     if (result.kind === 'gguf') {
-      setStatus(`Parsed ${result.header.metadataCount} metadata entries from ${file.name}.`);
+      setStatus(
+        `Parsed ${result.header.metadataCount} metadata entries from ${file.name}. SHA-256 is calculating in the background.`
+      );
     } else {
       setStatus(
-        `Parsed ${result.header.nodeCount} graph nodes and ${result.header.metadataCount} metadata entries from ${file.name}.`
+        `Parsed ${result.header.nodeCount} graph nodes and ${result.header.metadataCount} metadata entries from ${file.name}. SHA-256 is calculating in the background.`
       );
     }
   } catch (error) {
+    if (fileToken !== activeFileToken) {
+      return;
+    }
     latestResult = null;
+    resetUploadSelection();
     resetPanels();
     setStatus(toUserFacingError(error, file).message, true);
   } finally {
