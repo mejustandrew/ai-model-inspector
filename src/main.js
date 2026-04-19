@@ -35,6 +35,9 @@ app.innerHTML = `
         <div class="hash-status hidden mono" id="dropzone-hash">
           <span class="hash-label">SHA-256:</span>
           <span class="hash-value" id="dropzone-hash-value"></span>
+          <button class="hash-cancel hidden" id="hash-cancel" type="button" aria-label="Cancel SHA-256 calculation">
+            Cancel
+          </button>
         </div>
       </div>
     </section>
@@ -160,6 +163,7 @@ const dropzoneSelection = document.querySelector('#dropzone-selection');
 const dropzoneFile = document.querySelector('#dropzone-file');
 const dropzoneHash = document.querySelector('#dropzone-hash');
 const dropzoneHashValue = document.querySelector('#dropzone-hash-value');
+const hashCancelButton = document.querySelector('#hash-cancel');
 const status = document.querySelector('#status');
 const summaryPanel = document.querySelector('#summary-panel');
 const summaryGrid = document.querySelector('#summary-grid');
@@ -302,6 +306,7 @@ function resetUploadSelection() {
   dropzoneHashValue.textContent = '';
   dropzoneSelection.classList.add('hidden');
   dropzoneHash.classList.add('hidden');
+  hashCancelButton.classList.add('hidden');
   dropzoneHashValue.removeAttribute('role');
   dropzoneHashValue.removeAttribute('tabindex');
   dropzoneHashValue.removeAttribute('aria-disabled');
@@ -316,12 +321,14 @@ function renderUploadSelection(file, hashState = { phase: 'idle' }) {
   switch (hashState.phase) {
     case 'ready':
       dropzoneHashValue.textContent = 'Click to calculate';
+      hashCancelButton.classList.add('hidden');
       dropzoneHashValue.setAttribute('role', 'button');
       dropzoneHashValue.setAttribute('tabindex', '0');
       dropzoneHashValue.classList.add('hash-action-text');
       break;
     case 'hashing':
       dropzoneHashValue.textContent = `calculating... ${hashState.progressText}`;
+      hashCancelButton.classList.remove('hidden');
       dropzoneHashValue.removeAttribute('role');
       dropzoneHashValue.removeAttribute('tabindex');
       dropzoneHashValue.setAttribute('aria-disabled', 'true');
@@ -329,18 +336,21 @@ function renderUploadSelection(file, hashState = { phase: 'idle' }) {
       break;
     case 'complete':
       dropzoneHashValue.textContent = hashState.value;
+      hashCancelButton.classList.add('hidden');
       dropzoneHashValue.removeAttribute('role');
       dropzoneHashValue.removeAttribute('tabindex');
       dropzoneHashValue.classList.remove('hash-action-text');
       break;
     case 'error':
       dropzoneHashValue.textContent = `unavailable: ${hashState.message}`;
+      hashCancelButton.classList.add('hidden');
       dropzoneHashValue.setAttribute('role', 'button');
       dropzoneHashValue.setAttribute('tabindex', '0');
       dropzoneHashValue.classList.add('hash-action-text');
       break;
     default:
       dropzoneHashValue.textContent = 'Click to calculate';
+      hashCancelButton.classList.add('hidden');
       dropzoneHashValue.setAttribute('role', 'button');
       dropzoneHashValue.setAttribute('tabindex', '0');
       dropzoneHashValue.classList.add('hash-action-text');
@@ -741,6 +751,18 @@ dropzoneHashValue.addEventListener('keydown', (event) => {
 
   event.preventDefault();
   maybeStartHashCalculation();
+});
+
+hashCancelButton.addEventListener('click', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (!latestFile || !hashWorker) {
+    return;
+  }
+
+  terminateHashWorker();
+  renderUploadSelection(latestFile, { phase: 'ready' });
 });
 
 downloadJsonButton.addEventListener('click', () => {
