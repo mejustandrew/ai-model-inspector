@@ -27,11 +27,16 @@ app.innerHTML = `
         <span class="dropzone-title">Choose a GGUF or ONNX file</span>
         <div class="dropzone-selection hidden" id="dropzone-selection">
           <span class="dropzone-file mono" id="dropzone-file"></span>
-          <span class="dropzone-hash mono" id="dropzone-hash"></span>
         </div>
         <span class="dropzone-copy">or drag and drop it here</span>
       </label>
-      <div class="status" id="status">Waiting for a GGUF or ONNX file.</div>
+      <div class="upload-feedback">
+        <div class="status" id="status">Waiting for a GGUF or ONNX file.</div>
+        <div class="hash-status hidden mono" id="dropzone-hash">
+          <span class="hash-label">SHA-256:</span>
+          <span class="hash-value" id="dropzone-hash-value"></span>
+        </div>
+      </div>
     </section>
 
     <section class="panel hidden collapsible-panel" id="summary-panel" data-collapsed="false">
@@ -154,6 +159,7 @@ const dropzone = document.querySelector('#dropzone');
 const dropzoneSelection = document.querySelector('#dropzone-selection');
 const dropzoneFile = document.querySelector('#dropzone-file');
 const dropzoneHash = document.querySelector('#dropzone-hash');
+const dropzoneHashValue = document.querySelector('#dropzone-hash-value');
 const status = document.querySelector('#status');
 const summaryPanel = document.querySelector('#summary-panel');
 const summaryGrid = document.querySelector('#summary-grid');
@@ -173,6 +179,7 @@ const downloadJsonButton = document.querySelector('#download-json');
 const collapsiblePanels = document.querySelectorAll('.collapsible-panel');
 
 let latestResult = null;
+let latestFile = null;
 let activeFileToken = 0;
 let hashWorker = null;
 const COLLAPSIBLE_VALUE_LENGTH = 2000;
@@ -292,25 +299,51 @@ function createSummaryCard(label, value) {
 
 function resetUploadSelection() {
   dropzoneFile.textContent = '';
-  dropzoneHash.textContent = '';
+  dropzoneHashValue.textContent = '';
   dropzoneSelection.classList.add('hidden');
+  dropzoneHash.classList.add('hidden');
+  dropzoneHashValue.removeAttribute('role');
+  dropzoneHashValue.removeAttribute('tabindex');
+  dropzoneHashValue.removeAttribute('aria-disabled');
+  dropzoneHashValue.classList.remove('hash-action-text');
 }
 
 function renderUploadSelection(file, hashState = { phase: 'idle' }) {
   dropzoneFile.textContent = file.name;
+  dropzoneHash.classList.remove('hidden');
+  dropzoneHashValue.removeAttribute('aria-disabled');
 
   switch (hashState.phase) {
+    case 'ready':
+      dropzoneHashValue.textContent = 'Click to calculate';
+      dropzoneHashValue.setAttribute('role', 'button');
+      dropzoneHashValue.setAttribute('tabindex', '0');
+      dropzoneHashValue.classList.add('hash-action-text');
+      break;
     case 'hashing':
-      dropzoneHash.textContent = `SHA-256: calculating... ${hashState.progressText}`;
+      dropzoneHashValue.textContent = `calculating... ${hashState.progressText}`;
+      dropzoneHashValue.removeAttribute('role');
+      dropzoneHashValue.removeAttribute('tabindex');
+      dropzoneHashValue.setAttribute('aria-disabled', 'true');
+      dropzoneHashValue.classList.remove('hash-action-text');
       break;
     case 'complete':
-      dropzoneHash.textContent = `SHA-256: ${hashState.value}`;
+      dropzoneHashValue.textContent = hashState.value;
+      dropzoneHashValue.removeAttribute('role');
+      dropzoneHashValue.removeAttribute('tabindex');
+      dropzoneHashValue.classList.remove('hash-action-text');
       break;
     case 'error':
-      dropzoneHash.textContent = `SHA-256 unavailable: ${hashState.message}`;
+      dropzoneHashValue.textContent = `unavailable: ${hashState.message}`;
+      dropzoneHashValue.setAttribute('role', 'button');
+      dropzoneHashValue.setAttribute('tabindex', '0');
+      dropzoneHashValue.classList.add('hash-action-text');
       break;
     default:
-      dropzoneHash.textContent = 'SHA-256: pending';
+      dropzoneHashValue.textContent = 'Click to calculate';
+      dropzoneHashValue.setAttribute('role', 'button');
+      dropzoneHashValue.setAttribute('tabindex', '0');
+      dropzoneHashValue.classList.add('hash-action-text');
       break;
   }
 
@@ -642,7 +675,8 @@ async function handleFile(file) {
   const fileToken = activeFileToken + 1;
   activeFileToken = fileToken;
   terminateHashWorker();
-  renderUploadSelection(file);
+  latestFile = file;
+  renderUploadSelection(file, { phase: 'ready' });
   setStatus(`Reading ${file.name}...`);
 
   try {
@@ -654,15 +688,12 @@ async function handleFile(file) {
     latestResult = result;
     resetPanels();
     renderResult(result, file);
-    startHashing(file, fileToken, result);
 
     if (result.kind === 'gguf') {
-      setStatus(
-        `Parsed ${result.header.metadataCount} metadata entries from ${file.name}. SHA-256 is calculating in the background.`
-      );
+      setStatus(`Parsed ${result.header.metadataCount} metadata entries from ${file.name}.`);
     } else {
       setStatus(
-        `Parsed ${result.header.nodeCount} graph nodes and ${result.header.metadataCount} metadata entries from ${file.name}. SHA-256 is calculating in the background.`
+        `Parsed ${result.header.nodeCount} graph nodes and ${result.header.metadataCount} metadata entries from ${file.name}.`
       );
     }
   } catch (error) {
@@ -670,6 +701,7 @@ async function handleFile(file) {
       return;
     }
     latestResult = null;
+    latestFile = null;
     resetUploadSelection();
     resetPanels();
     setStatus(toUserFacingError(error, file).message, true);
@@ -687,6 +719,28 @@ metadataFilter.addEventListener('input', () => {
   if (latestResult) {
     renderMetadata(latestResult.metadataEntries);
   }
+});
+
+function maybeStartHashCalculation() {
+  if (!latestFile || !latestResult || hashWorker || latestResult.fileHash) {
+    return;
+  }
+
+  startHashing(latestFile, activeFileToken, latestResult);
+}
+
+dropzoneHashValue.addEventListener('click', (event) => {
+  event.preventDefault();
+  maybeStartHashCalculation();
+});
+
+dropzoneHashValue.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') {
+    return;
+  }
+
+  event.preventDefault();
+  maybeStartHashCalculation();
 });
 
 downloadJsonButton.addEventListener('click', () => {

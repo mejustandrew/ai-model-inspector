@@ -126,7 +126,6 @@ body::before {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.5rem;
   max-width: min(100%, 60rem);
   color: var(--accent-strong);
   font-size: 0.94rem;
@@ -145,9 +144,38 @@ body::before {
   color: var(--muted);
 }
 
-.status {
+.upload-feedback {
   padding: 1rem 0.5rem 0.25rem;
+}
+
+.hash-action-text {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+.hash-action-text:hover,
+.hash-action-text:focus-visible {
+  color: var(--ink);
+}
+
+.status {
   color: var(--muted);
+}
+
+.hash-status {
+  margin-top: 0.35rem;
+  color: var(--accent-strong);
+  word-break: break-word;
+}
+
+.hash-label {
+  color: var(--accent-strong);
+}
+
+.hash-value {
+  margin-left: 0.35rem;
 }
 
 .status[data-state='error'] {
