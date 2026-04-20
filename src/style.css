@@ -1,6 +1,10 @@
 :root {
   color-scheme: dark;
   --bg: #081321;
+  --bg-top: #10233a;
+  --bg-bottom: #050d18;
+  --bg-accent-left: rgba(74, 129, 255, 0.28);
+  --bg-accent-right: rgba(37, 94, 187, 0.2);
   --panel: rgba(11, 27, 46, 0.88);
   --panel-border: rgba(110, 163, 255, 0.16);
   --ink: #d3dceb;
@@ -8,8 +12,66 @@
   --accent: #2f7cf6;
   --accent-strong: #7ab0ff;
   --shadow: 0 18px 60px rgba(1, 8, 19, 0.42);
+  --control-border: rgba(122, 176, 255, 0.14);
+  --control-bg: rgba(7, 19, 33, 0.44);
+  --control-bg-hover: rgba(14, 34, 58, 0.68);
+  --control-color: rgba(122, 176, 255, 0.72);
+  --control-color-hover: rgba(223, 240, 255, 0.9);
+  --control-active-bg: rgba(122, 176, 255, 0.1);
+  --control-active-color: rgba(239, 247, 255, 0.88);
+  --control-shadow: 0 8px 20px rgba(1, 8, 19, 0.18);
+  --summary-card-bg: rgba(16, 36, 61, 0.82);
+  --summary-card-border: rgba(110, 163, 255, 0.14);
+  --dropzone-border: rgba(81, 141, 255, 0.42);
+  --dropzone-bg:
+    linear-gradient(135deg, rgba(18, 41, 70, 0.94), rgba(9, 24, 43, 0.94)),
+    linear-gradient(135deg, rgba(47, 124, 246, 0.14), transparent);
+  --dropzone-bg-hover:
+    linear-gradient(135deg, rgba(23, 51, 86, 0.98), rgba(11, 28, 49, 0.98)),
+    linear-gradient(135deg, rgba(47, 124, 246, 0.2), transparent);
+  --search-border: rgba(110, 163, 255, 0.18);
+  --search-bg: rgba(8, 20, 36, 0.92);
+  --panel-toggle-bg: rgba(47, 124, 246, 0.08);
+  --panel-toggle-bg-hover: rgba(122, 176, 255, 0.16);
   --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
   --sans: "Space Grotesk", "Segoe UI", sans-serif;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #dfe4ea;
+  --bg-top: #eef1f5;
+  --bg-bottom: #d7dde4;
+  --bg-accent-left: rgba(110, 147, 208, 0.18);
+  --bg-accent-right: rgba(97, 127, 173, 0.12);
+  --panel: rgba(248, 250, 252, 0.9);
+  --panel-border: rgba(115, 140, 175, 0.2);
+  --ink: #1e2d3d;
+  --muted: #66768a;
+  --accent: #3e7ae2;
+  --accent-strong: #2f63c1;
+  --shadow: 0 18px 48px rgba(76, 96, 122, 0.12);
+  --control-border: rgba(115, 140, 175, 0.18);
+  --control-bg: rgba(255, 255, 255, 0.72);
+  --control-bg-hover: rgba(255, 255, 255, 0.94);
+  --control-color: rgba(76, 104, 150, 0.74);
+  --control-color-hover: rgba(32, 55, 92, 0.9);
+  --control-active-bg: rgba(62, 122, 226, 0.12);
+  --control-active-color: rgba(32, 55, 92, 0.92);
+  --control-shadow: 0 8px 20px rgba(120, 136, 161, 0.14);
+  --summary-card-bg: rgba(241, 245, 249, 0.94);
+  --summary-card-border: rgba(115, 140, 175, 0.16);
+  --dropzone-border: rgba(80, 123, 199, 0.34);
+  --dropzone-bg:
+    linear-gradient(135deg, rgba(251, 252, 254, 0.96), rgba(240, 244, 249, 0.96)),
+    linear-gradient(135deg, rgba(62, 122, 226, 0.08), transparent);
+  --dropzone-bg-hover:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(235, 241, 247, 0.98)),
+    linear-gradient(135deg, rgba(62, 122, 226, 0.12), transparent);
+  --search-border: rgba(115, 140, 175, 0.2);
+  --search-bg: rgba(255, 255, 255, 0.88);
+  --panel-toggle-bg: rgba(62, 122, 226, 0.08);
+  --panel-toggle-bg-hover: rgba(62, 122, 226, 0.16);
 }
 
 * {
@@ -27,9 +89,9 @@ body {
   font-family: var(--sans);
   color: var(--ink);
   background:
-    radial-gradient(circle at top left, rgba(74, 129, 255, 0.28), transparent 26%),
-    radial-gradient(circle at top right, rgba(37, 94, 187, 0.2), transparent 24%),
-    linear-gradient(180deg, #10233a 0%, var(--bg) 45%, #050d18 100%);
+    radial-gradient(circle at top left, var(--bg-accent-left), transparent 26%),
+    radial-gradient(circle at top right, var(--bg-accent-right), transparent 24%),
+    linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 45%, var(--bg-bottom) 100%);
 }
 
 .graph-background {
@@ -42,39 +104,57 @@ body {
   z-index: 0;
 }
 
-.motion-toggle {
+.app-controls {
   position: fixed;
   top: 1rem;
   right: 1rem;
   z-index: 3;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.theme-toggle,
+.motion-toggle {
   width: 2.55rem;
   height: 2.55rem;
   padding: 0;
-  border: 1px solid rgba(122, 176, 255, 0.14);
+  border: 1px solid var(--control-border);
   border-radius: 50%;
-  background: rgba(7, 19, 33, 0.44);
-  color: rgba(122, 176, 255, 0.72);
-  box-shadow: 0 8px 20px rgba(1, 8, 19, 0.18);
+  background: var(--control-bg);
+  color: var(--control-color);
+  box-shadow: var(--control-shadow);
   backdrop-filter: blur(8px);
   opacity: 0.82;
 }
 
+.theme-toggle:hover,
+.theme-toggle:focus-visible,
 .motion-toggle:hover,
 .motion-toggle:focus-visible {
-  background: rgba(14, 34, 58, 0.68);
-  color: rgba(223, 240, 255, 0.9);
+  background: var(--control-bg-hover);
+  color: var(--control-color-hover);
   opacity: 1;
 }
 
+.theme-toggle[aria-pressed='true'],
 .motion-toggle[aria-pressed='true'] {
-  background: rgba(122, 176, 255, 0.1);
-  color: rgba(239, 247, 255, 0.88);
+  background: var(--control-active-bg);
+  color: var(--control-active-color);
+}
+
+.theme-toggle-icon,
+.motion-toggle-icon {
+  display: block;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.theme-toggle-icon {
+  transform: translateY(-0.04em);
 }
 
 .motion-toggle-icon {
-  display: block;
   font-size: 1.1rem;
-  line-height: 1;
   transform: translateY(-0.02em);
 }
 
@@ -133,10 +213,8 @@ body {
   min-height: 220px;
   padding: 2rem;
   border-radius: 20px;
-  border: 2px dashed rgba(81, 141, 255, 0.42);
-  background:
-    linear-gradient(135deg, rgba(18, 41, 70, 0.94), rgba(9, 24, 43, 0.94)),
-    linear-gradient(135deg, rgba(47, 124, 246, 0.14), transparent);
+  border: 2px dashed var(--dropzone-border);
+  background: var(--dropzone-bg);
   text-align: center;
   cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
@@ -146,9 +224,7 @@ body {
 .dropzone.dragging {
   transform: translateY(-2px);
   border-color: rgba(122, 176, 255, 0.86);
-  background:
-    linear-gradient(135deg, rgba(23, 51, 86, 0.98), rgba(11, 28, 49, 0.98)),
-    linear-gradient(135deg, rgba(47, 124, 246, 0.2), transparent);
+  background: var(--dropzone-bg-hover);
 }
 
 .dropzone input {
@@ -250,8 +326,8 @@ body {
 .summary-card {
   padding: 1rem;
   border-radius: 18px;
-  background: rgba(16, 36, 61, 0.82);
-  border: 1px solid rgba(110, 163, 255, 0.14);
+  background: var(--summary-card-bg);
+  border: 1px solid var(--summary-card-border);
 }
 
 .summary-label {
@@ -307,9 +383,9 @@ button {
 input[type='search'] {
   min-width: min(320px, 42vw);
   padding: 0.8rem 0.9rem;
-  border: 1px solid rgba(110, 163, 255, 0.18);
+  border: 1px solid var(--search-border);
   border-radius: 999px;
-  background: rgba(8, 20, 36, 0.92);
+  background: var(--search-bg);
   color: var(--ink);
 }
 
@@ -334,13 +410,13 @@ button:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(47, 124, 246, 0.08);
+  background: var(--panel-toggle-bg);
   color: var(--muted);
   border: 0;
 }
 
 .panel-toggle:hover {
-  background: rgba(122, 176, 255, 0.16);
+  background: var(--panel-toggle-bg-hover);
   color: var(--ink);
 }
 
@@ -469,11 +545,9 @@ button:hover {
 }
 
 @media (max-width: 720px) {
-  .motion-toggle {
-    top: 0.75rem;
-    right: 0.75rem;
-    width: 2.3rem;
-    height: 2.3rem;
+  .graph-background,
+  .app-controls {
+    display: none;
   }
 
   .shell {

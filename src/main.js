@@ -6,16 +6,28 @@ const app = document.querySelector('#app');
 
 app.innerHTML = `
   <canvas class="graph-background" id="graph-background" aria-hidden="true"></canvas>
-  <button
-    class="motion-toggle"
-    id="motion-toggle"
-    type="button"
-    aria-pressed="false"
-    aria-label="Freeze background motion"
-    title="Freeze background motion"
-  >
-    <span class="motion-toggle-icon" aria-hidden="true">✻</span>
-  </button>
+  <div class="app-controls">
+    <button
+      class="theme-toggle"
+      id="theme-toggle"
+      type="button"
+      aria-pressed="false"
+      aria-label="Switch to light theme"
+      title="Switch to light theme"
+    >
+      <span class="theme-toggle-icon" aria-hidden="true">&#9681;</span>
+    </button>
+    <button
+      class="motion-toggle"
+      id="motion-toggle"
+      type="button"
+      aria-pressed="false"
+      aria-label="Freeze background motion"
+      title="Freeze background motion"
+    >
+      <span class="motion-toggle-icon" aria-hidden="true">&#10043;</span>
+    </button>
+  </div>
   <main class="shell">
     <section class="hero">
       <p class="eyebrow">Static Model Inspector</p>
@@ -169,6 +181,7 @@ app.innerHTML = `
 `;
 
 const graphBackground = document.querySelector('#graph-background');
+const themeToggle = document.querySelector('#theme-toggle');
 const motionToggle = document.querySelector('#motion-toggle');
 const fileInput = document.querySelector('#file-input');
 const dropzone = document.querySelector('#dropzone');
@@ -203,12 +216,58 @@ const COLLAPSIBLE_VALUE_LENGTH = 2000;
 const COLLAPSIBLE_ARRAY_LENGTH = 40;
 const COPY_RESET_DELAY_MS = 1500;
 const GRAPH_CONNECTION_DISTANCE = 140;
+const GRAPH_CONNECTION_DISTANCE_SQUARED = GRAPH_CONNECTION_DISTANCE ** 2;
 const GRAPH_PARTICLE_AREA = 18000;
 const GRAPH_MIN_PARTICLES = 36;
 const GRAPH_MAX_PARTICLES = 110;
+const THEME_STORAGE_KEY = 'ami-theme';
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function applyTheme(theme, graphController) {
+  document.documentElement.dataset.theme = theme;
+  graphController?.syncPalette();
+}
+
+function updateThemeToggle(button, theme) {
+  if (!button) {
+    return;
+  }
+
+  const isLight = theme === 'light';
+  button.setAttribute('aria-pressed', isLight ? 'true' : 'false');
+  button.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to light theme');
+  button.title = isLight ? 'Switch to dark theme' : 'Switch to light theme';
+}
+
+function setupThemeToggle(button) {
+  const systemLightQuery = window.matchMedia('(prefers-color-scheme: light)');
+  const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  let activeTheme = savedTheme || (systemLightQuery.matches ? 'light' : 'dark');
+
+  applyTheme(activeTheme, graphBackgroundController);
+  updateThemeToggle(button, activeTheme);
+
+  if (!savedTheme) {
+    systemLightQuery.addEventListener('change', (event) => {
+      activeTheme = event.matches ? 'light' : 'dark';
+      applyTheme(activeTheme, graphBackgroundController);
+      updateThemeToggle(button, activeTheme);
+    });
+  }
+
+  if (!button) {
+    return;
+  }
+
+  button.addEventListener('click', () => {
+    activeTheme = activeTheme === 'light' ? 'dark' : 'light';
+    window.localStorage.setItem(THEME_STORAGE_KEY, activeTheme);
+    applyTheme(activeTheme, graphBackgroundController);
+    updateThemeToggle(button, activeTheme);
+  });
 }
 
 function setupDynamicGraphBackground(canvas) {
@@ -222,11 +281,14 @@ function setupDynamicGraphBackground(canvas) {
   }
 
   const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const smallScreenQuery = window.matchMedia('(max-width: 720px)');
   const particles = [];
   let width = 0;
   let height = 0;
   let animationFrameId = 0;
   let isFrozen = false;
+  let particleFillStyle = 'rgba(148, 193, 255, 0.8)';
+  let lineColor = '111, 170, 255';
 
   function randomBetween(min, max) {
     return min + Math.random() * (max - min);
@@ -243,6 +305,12 @@ function setupDynamicGraphBackground(canvas) {
       vy: Math.sin(direction) * speed,
       radius: randomBetween(1.2, 2.8),
     };
+  }
+
+  function syncGraphPalette() {
+    const isLightTheme = document.documentElement.dataset.theme === 'light';
+    particleFillStyle = isLightTheme ? 'rgba(134, 143, 153, 0.62)' : 'rgba(148, 193, 255, 0.8)';
+    lineColor = isLightTheme ? '148, 156, 166' : '111, 170, 255';
   }
 
   function resizeCanvas() {
@@ -294,7 +362,7 @@ function setupDynamicGraphBackground(canvas) {
       const particle = particles[index];
 
       context.beginPath();
-      context.fillStyle = 'rgba(148, 193, 255, 0.8)';
+      context.fillStyle = particleFillStyle;
       context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
       context.fill();
 
@@ -302,15 +370,16 @@ function setupDynamicGraphBackground(canvas) {
         const other = particles[otherIndex];
         const dx = particle.x - other.x;
         const dy = particle.y - other.y;
-        const distance = Math.hypot(dx, dy);
+        const distanceSquared = dx * dx + dy * dy;
 
-        if (distance > GRAPH_CONNECTION_DISTANCE) {
+        if (distanceSquared > GRAPH_CONNECTION_DISTANCE_SQUARED) {
           continue;
         }
 
+        const distance = Math.sqrt(distanceSquared);
         const opacity = 1 - distance / GRAPH_CONNECTION_DISTANCE;
         context.beginPath();
-        context.strokeStyle = `rgba(111, 170, 255, ${opacity * 0.45})`;
+        context.strokeStyle = `rgba(${lineColor}, ${opacity * 0.45})`;
         context.lineWidth = opacity * 1.3;
         context.moveTo(particle.x, particle.y);
         context.lineTo(other.x, other.y);
@@ -320,11 +389,16 @@ function setupDynamicGraphBackground(canvas) {
   }
 
   function renderFrame() {
+    if (smallScreenQuery.matches) {
+      context.clearRect(0, 0, width, height);
+      return;
+    }
+
     drawGraph();
   }
 
   function animate() {
-    if (document.hidden || mediaQuery.matches || isFrozen) {
+    if (document.hidden || mediaQuery.matches || smallScreenQuery.matches || isFrozen) {
       renderFrame();
       animationFrameId = 0;
       return;
@@ -344,7 +418,7 @@ function setupDynamicGraphBackground(canvas) {
   }
 
   function handleVisibilityChange() {
-    if (document.hidden || mediaQuery.matches || isFrozen) {
+    if (document.hidden || mediaQuery.matches || smallScreenQuery.matches || isFrozen) {
       if (animationFrameId) {
         window.cancelAnimationFrame(animationFrameId);
         animationFrameId = 0;
@@ -357,12 +431,14 @@ function setupDynamicGraphBackground(canvas) {
   }
 
   resizeCanvas();
+  syncGraphPalette();
   renderFrame();
   startAnimation();
 
   window.addEventListener('resize', resizeCanvas);
   document.addEventListener('visibilitychange', handleVisibilityChange);
   mediaQuery.addEventListener('change', handleVisibilityChange);
+  smallScreenQuery.addEventListener('change', handleVisibilityChange);
 
   return {
     isFrozen() {
@@ -372,6 +448,10 @@ function setupDynamicGraphBackground(canvas) {
       isFrozen = !isFrozen;
       handleVisibilityChange();
       return isFrozen;
+    },
+    syncPalette() {
+      syncGraphPalette();
+      renderFrame();
     },
   };
 }
@@ -999,6 +1079,7 @@ collapsiblePanels.forEach((panel) => {
 });
 
 const graphBackgroundController = setupDynamicGraphBackground(graphBackground);
+setupThemeToggle(themeToggle);
 
 if (motionToggle && graphBackgroundController) {
   motionToggle.addEventListener('click', () => {
