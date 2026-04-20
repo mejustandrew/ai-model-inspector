@@ -6,6 +6,16 @@ const app = document.querySelector('#app');
 
 app.innerHTML = `
   <canvas class="graph-background" id="graph-background" aria-hidden="true"></canvas>
+  <button
+    class="motion-toggle"
+    id="motion-toggle"
+    type="button"
+    aria-pressed="false"
+    aria-label="Freeze background motion"
+    title="Freeze background motion"
+  >
+    <span class="motion-toggle-icon" aria-hidden="true">✻</span>
+  </button>
   <main class="shell">
     <section class="hero">
       <p class="eyebrow">Static Model Inspector</p>
@@ -159,6 +169,7 @@ app.innerHTML = `
 `;
 
 const graphBackground = document.querySelector('#graph-background');
+const motionToggle = document.querySelector('#motion-toggle');
 const fileInput = document.querySelector('#file-input');
 const dropzone = document.querySelector('#dropzone');
 const dropzoneSelection = document.querySelector('#dropzone-selection');
@@ -202,12 +213,12 @@ function clamp(value, min, max) {
 
 function setupDynamicGraphBackground(canvas) {
   if (!canvas) {
-    return;
+    return null;
   }
 
   const context = canvas.getContext('2d');
   if (!context) {
-    return;
+    return null;
   }
 
   const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -215,6 +226,7 @@ function setupDynamicGraphBackground(canvas) {
   let width = 0;
   let height = 0;
   let animationFrameId = 0;
+  let isFrozen = false;
 
   function randomBetween(min, max) {
     return min + Math.random() * (max - min);
@@ -312,7 +324,7 @@ function setupDynamicGraphBackground(canvas) {
   }
 
   function animate() {
-    if (document.hidden || mediaQuery.matches) {
+    if (document.hidden || mediaQuery.matches || isFrozen) {
       renderFrame();
       animationFrameId = 0;
       return;
@@ -332,7 +344,7 @@ function setupDynamicGraphBackground(canvas) {
   }
 
   function handleVisibilityChange() {
-    if (document.hidden || mediaQuery.matches) {
+    if (document.hidden || mediaQuery.matches || isFrozen) {
       if (animationFrameId) {
         window.cancelAnimationFrame(animationFrameId);
         animationFrameId = 0;
@@ -351,6 +363,17 @@ function setupDynamicGraphBackground(canvas) {
   window.addEventListener('resize', resizeCanvas);
   document.addEventListener('visibilitychange', handleVisibilityChange);
   mediaQuery.addEventListener('change', handleVisibilityChange);
+
+  return {
+    isFrozen() {
+      return isFrozen;
+    },
+    toggleFrozen() {
+      isFrozen = !isFrozen;
+      handleVisibilityChange();
+      return isFrozen;
+    },
+  };
 }
 
 function setPanelCollapsed(panel, collapsed) {
@@ -975,4 +998,16 @@ collapsiblePanels.forEach((panel) => {
   });
 });
 
-setupDynamicGraphBackground(graphBackground);
+const graphBackgroundController = setupDynamicGraphBackground(graphBackground);
+
+if (motionToggle && graphBackgroundController) {
+  motionToggle.addEventListener('click', () => {
+    const frozen = graphBackgroundController.toggleFrozen();
+    motionToggle.setAttribute('aria-pressed', frozen ? 'true' : 'false');
+    motionToggle.setAttribute(
+      'aria-label',
+      frozen ? 'Resume background motion' : 'Freeze background motion'
+    );
+    motionToggle.title = frozen ? 'Resume background motion' : 'Freeze background motion';
+  });
+}

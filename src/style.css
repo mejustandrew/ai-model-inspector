@@ -42,6 +42,42 @@ body {
   z-index: 0;
 }
 
+.motion-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 3;
+  width: 2.55rem;
+  height: 2.55rem;
+  padding: 0;
+  border: 1px solid rgba(122, 176, 255, 0.14);
+  border-radius: 50%;
+  background: rgba(7, 19, 33, 0.44);
+  color: rgba(122, 176, 255, 0.72);
+  box-shadow: 0 8px 20px rgba(1, 8, 19, 0.18);
+  backdrop-filter: blur(8px);
+  opacity: 0.82;
+}
+
+.motion-toggle:hover,
+.motion-toggle:focus-visible {
+  background: rgba(14, 34, 58, 0.68);
+  color: rgba(223, 240, 255, 0.9);
+  opacity: 1;
+}
+
+.motion-toggle[aria-pressed='true'] {
+  background: rgba(122, 176, 255, 0.1);
+  color: rgba(239, 247, 255, 0.88);
+}
+
+.motion-toggle-icon {
+  display: block;
+  font-size: 1.1rem;
+  line-height: 1;
+  transform: translateY(-0.02em);
+}
+
 .shell {
   position: relative;
   z-index: 1;
@@ -433,6 +469,13 @@ button:hover {
 }
 
 @media (max-width: 720px) {
+  .motion-toggle {
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 2.3rem;
+    height: 2.3rem;
+  }
+
   .shell {
     width: min(100% - 1rem, 1120px);
     padding-top: 1.25rem;
