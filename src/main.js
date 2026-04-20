@@ -5,6 +5,7 @@ import { parseOnnx } from './onnxParser.js';
 const app = document.querySelector('#app');
 
 app.innerHTML = `
+  <canvas class="graph-background" id="graph-background" aria-hidden="true"></canvas>
   <main class="shell">
     <section class="hero">
       <p class="eyebrow">Static Model Inspector</p>
@@ -157,6 +158,7 @@ app.innerHTML = `
   </main>
 `;
 
+const graphBackground = document.querySelector('#graph-background');
 const fileInput = document.querySelector('#file-input');
 const dropzone = document.querySelector('#dropzone');
 const dropzoneSelection = document.querySelector('#dropzone-selection');
@@ -189,6 +191,167 @@ let hashWorker = null;
 const COLLAPSIBLE_VALUE_LENGTH = 2000;
 const COLLAPSIBLE_ARRAY_LENGTH = 40;
 const COPY_RESET_DELAY_MS = 1500;
+const GRAPH_CONNECTION_DISTANCE = 140;
+const GRAPH_PARTICLE_AREA = 18000;
+const GRAPH_MIN_PARTICLES = 36;
+const GRAPH_MAX_PARTICLES = 110;
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function setupDynamicGraphBackground(canvas) {
+  if (!canvas) {
+    return;
+  }
+
+  const context = canvas.getContext('2d');
+  if (!context) {
+    return;
+  }
+
+  const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const particles = [];
+  let width = 0;
+  let height = 0;
+  let animationFrameId = 0;
+
+  function randomBetween(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  function createParticle() {
+    const speed = randomBetween(0.12, 0.42);
+    const direction = randomBetween(0, Math.PI * 2);
+
+    return {
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: Math.cos(direction) * speed,
+      vy: Math.sin(direction) * speed,
+      radius: randomBetween(1.2, 2.8),
+    };
+  }
+
+  function resizeCanvas() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const particleCount = clamp(
+      Math.round((width * height) / GRAPH_PARTICLE_AREA),
+      GRAPH_MIN_PARTICLES,
+      GRAPH_MAX_PARTICLES
+    );
+
+    canvas.width = Math.floor(width * pixelRatio);
+    canvas.height = Math.floor(height * pixelRatio);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+    while (particles.length < particleCount) {
+      particles.push(createParticle());
+    }
+
+    if (particles.length > particleCount) {
+      particles.length = particleCount;
+    }
+  }
+
+  function updateParticles() {
+    for (const particle of particles) {
+      particle.x += particle.vx;
+      particle.y += particle.vy;
+
+      if (particle.x <= 0 || particle.x >= width) {
+        particle.vx *= -1;
+        particle.x = clamp(particle.x, 0, width);
+      }
+
+      if (particle.y <= 0 || particle.y >= height) {
+        particle.vy *= -1;
+        particle.y = clamp(particle.y, 0, height);
+      }
+    }
+  }
+
+  function drawGraph() {
+    context.clearRect(0, 0, width, height);
+
+    for (let index = 0; index < particles.length; index += 1) {
+      const particle = particles[index];
+
+      context.beginPath();
+      context.fillStyle = 'rgba(148, 193, 255, 0.8)';
+      context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+      context.fill();
+
+      for (let otherIndex = index + 1; otherIndex < particles.length; otherIndex += 1) {
+        const other = particles[otherIndex];
+        const dx = particle.x - other.x;
+        const dy = particle.y - other.y;
+        const distance = Math.hypot(dx, dy);
+
+        if (distance > GRAPH_CONNECTION_DISTANCE) {
+          continue;
+        }
+
+        const opacity = 1 - distance / GRAPH_CONNECTION_DISTANCE;
+        context.beginPath();
+        context.strokeStyle = `rgba(111, 170, 255, ${opacity * 0.45})`;
+        context.lineWidth = opacity * 1.3;
+        context.moveTo(particle.x, particle.y);
+        context.lineTo(other.x, other.y);
+        context.stroke();
+      }
+    }
+  }
+
+  function renderFrame() {
+    drawGraph();
+  }
+
+  function animate() {
+    if (document.hidden || mediaQuery.matches) {
+      renderFrame();
+      animationFrameId = 0;
+      return;
+    }
+
+    updateParticles();
+    drawGraph();
+    animationFrameId = window.requestAnimationFrame(animate);
+  }
+
+  function startAnimation() {
+    if (animationFrameId) {
+      return;
+    }
+
+    animationFrameId = window.requestAnimationFrame(animate);
+  }
+
+  function handleVisibilityChange() {
+    if (document.hidden || mediaQuery.matches) {
+      if (animationFrameId) {
+        window.cancelAnimationFrame(animationFrameId);
+        animationFrameId = 0;
+      }
+      renderFrame();
+      return;
+    }
+
+    startAnimation();
+  }
+
+  resizeCanvas();
+  renderFrame();
+  startAnimation();
+
+  window.addEventListener('resize', resizeCanvas);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  mediaQuery.addEventListener('change', handleVisibilityChange);
+}
 
 function setPanelCollapsed(panel, collapsed) {
   panel.dataset.collapsed = collapsed ? 'true' : 'false';
@@ -811,3 +974,5 @@ collapsiblePanels.forEach((panel) => {
     setPanelCollapsed(panel, !collapsed);
   });
 });
+
+setupDynamicGraphBackground(graphBackground);
