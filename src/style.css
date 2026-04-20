@@ -42,21 +42,9 @@ body {
   z-index: 0;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image: linear-gradient(rgba(163, 197, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(163, 197, 255, 0.08) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 75%);
-  z-index: 1;
-}
-
 .shell {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   width: min(1120px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 3rem 0 4rem;
