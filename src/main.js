@@ -38,7 +38,14 @@ app.innerHTML = `
       </p>
       <p class="lede">
         Built for private AI model inspection and local model analysis when you need to review
-        GGUF or ONNX files offline, on-device, and under your control.
+        GGUF or ONNX files offline, on-device.
+      </p>
+      <p class="lede source-link">
+        This project is
+        <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">
+          public on GitHub
+        </a>
+        .
       </p>
       <p class="lede">Your model, your data.</p>
     </section>
@@ -177,6 +184,10 @@ app.innerHTML = `
         </div>
       </div>
     </section>
+
+    <p class="app-disclaimer">
+      Work in progress. Results may contain mistakes.
+    </p>
   </main>
 `;
 
