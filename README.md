@@ -3,7 +3,7 @@
 A lightweight static web app for inspecting AI model files directly in the browser. It is built with Vite and does not require a backend.
 
 # Usage
-Available at https://ai-model-inspector.web.app 
+Available at https://ai-model-inspector.com
 
 Just access the site, upload the model and you are good to go. It does not require any install or compiling of source code. It runs directly in your browser.
 
