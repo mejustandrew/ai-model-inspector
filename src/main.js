@@ -159,6 +159,42 @@ app.innerHTML = `
       </div>
     </section>
 
+    <section class="panel hidden collapsible-panel" id="dependency-trace-panel" data-collapsed="false">
+      <div class="panel-head">
+        <div>
+          <h2>Dependency Trace</h2>
+          <p id="dependency-trace-subtitle">Full ONNX tensor flow from inputs to outputs.</p>
+        </div>
+        <div class="panel-actions">
+          <div class="trace-mode-control" role="group" aria-label="Dependency trace direction">
+            <button class="trace-mode-button" id="trace-forward" type="button" data-active="true">
+              Input Graph
+            </button>
+            <button class="trace-mode-button" id="trace-backward" type="button" data-active="false">
+              Output Graph
+            </button>
+          </div>
+          <button
+            class="panel-toggle"
+            type="button"
+            data-panel-toggle
+            aria-expanded="true"
+            aria-label="Collapse section"
+          ></button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="trace-stats" id="dependency-trace-stats"></div>
+        <div class="trace-canvas-wrap" id="dependency-trace-canvas"></div>
+        <div class="metadata-table-wrap">
+          <table class="metadata-table trace-summary-table">
+            <thead id="dependency-trace-head"></thead>
+            <tbody id="dependency-trace-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <section class="panel hidden collapsible-panel" id="detail-panel" data-collapsed="false">
       <div class="panel-head">
         <div>
@@ -211,6 +247,14 @@ const metadataBody = document.querySelector('#metadata-body');
 const metadataFilter = document.querySelector('#metadata-filter');
 const graphIoPanel = document.querySelector('#graph-io-panel');
 const graphIoBody = document.querySelector('#graph-io-body');
+const dependencyTracePanel = document.querySelector('#dependency-trace-panel');
+const dependencyTraceSubtitle = document.querySelector('#dependency-trace-subtitle');
+const dependencyTraceStats = document.querySelector('#dependency-trace-stats');
+const dependencyTraceCanvas = document.querySelector('#dependency-trace-canvas');
+const dependencyTraceHead = document.querySelector('#dependency-trace-head');
+const dependencyTraceBody = document.querySelector('#dependency-trace-body');
+const traceForwardButton = document.querySelector('#trace-forward');
+const traceBackwardButton = document.querySelector('#trace-backward');
 const detailPanel = document.querySelector('#detail-panel');
 const detailTitle = document.querySelector('#detail-title');
 const detailSubtitle = document.querySelector('#detail-subtitle');
@@ -232,6 +276,8 @@ const GRAPH_PARTICLE_AREA = 18000;
 const GRAPH_MIN_PARTICLES = 36;
 const GRAPH_MAX_PARTICLES = 110;
 const THEME_STORAGE_KEY = 'ami-theme';
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+let activeTraceMode = 'forward';
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -578,6 +624,26 @@ function createSummaryCard(label, value) {
   return card;
 }
 
+function createSvgElement(tagName, attributes = {}) {
+  const element = document.createElementNS(SVG_NAMESPACE, tagName);
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    element.setAttribute(key, String(value));
+  });
+
+  return element;
+}
+
+function setTraceMode(mode) {
+  activeTraceMode = mode;
+  traceForwardButton.dataset.active = mode === 'forward' ? 'true' : 'false';
+  traceBackwardButton.dataset.active = mode === 'backward' ? 'true' : 'false';
+
+  if (latestResult?.kind === 'onnx') {
+    renderDependencyTrace(latestResult.graph.dependencyTrace);
+  }
+}
+
 function resetUploadSelection() {
   dropzoneFile.textContent = '';
   dropzoneHashValue.textContent = '';
@@ -827,6 +893,273 @@ function renderGraphIo(items) {
   graphIoPanel.classList.remove('hidden');
 }
 
+function getTraceNodeLabel(node) {
+  return node.domain ? `${node.domain}::${node.opType}` : node.opType;
+}
+
+function getTensorKindClass(kind) {
+  return String(kind || 'Intermediate').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+function appendTraceText(parent, text, x, y, className) {
+  const textNode = createSvgElement('text', { x, y, class: className });
+  textNode.textContent = text;
+  parent.append(textNode);
+  return textNode;
+}
+
+function renderDependencyTraceGraph(traceData, mode) {
+  dependencyTraceCanvas.innerHTML = '';
+
+  if (!traceData) {
+    return;
+  }
+
+  const trace = mode === 'forward' ? traceData.forward : traceData.backward;
+  const nodeById = new Map(traceData.nodes.map((node) => [node.id, node]));
+  const tensorByName = new Map(traceData.tensors.map((tensor) => [tensor.name, tensor]));
+  const graphItems = [];
+
+  for (const tensorName of trace.tensorNames) {
+    graphItems.push({
+      id: `tensor:${tensorName}`,
+      kind: 'tensor',
+      name: tensorName,
+      depth: trace.tensorDepths[tensorName] ?? 0,
+      tensor: tensorByName.get(tensorName),
+    });
+  }
+
+  for (const nodeId of trace.nodeIds) {
+    graphItems.push({
+      id: `node:${nodeId}`,
+      kind: 'node',
+      nodeId,
+      depth: trace.nodeDepths[String(nodeId)] ?? 0,
+      node: nodeById.get(nodeId),
+    });
+  }
+
+  if (graphItems.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'trace-empty';
+    empty.textContent = 'No dependency trace was found in this ONNX graph.';
+    dependencyTraceCanvas.append(empty);
+    return;
+  }
+
+  const layers = new Map();
+  for (const item of graphItems) {
+    if (!layers.has(item.depth)) {
+      layers.set(item.depth, []);
+    }
+    layers.get(item.depth).push(item);
+  }
+
+  const sortedDepths = Array.from(layers.keys()).sort((left, right) => left - right);
+  const positions = new Map();
+  const columnWidth = 260;
+  const rowHeight = 86;
+  const nodeWidth = 190;
+  const nodeHeight = 54;
+  let maxLayerSize = 1;
+
+  for (const depth of sortedDepths) {
+    const layer = layers.get(depth).sort((left, right) => {
+      const leftLabel = left.kind === 'node' ? left.node?.label || '' : left.name;
+      const rightLabel = right.kind === 'node' ? right.node?.label || '' : right.name;
+      return leftLabel.localeCompare(rightLabel);
+    });
+    maxLayerSize = Math.max(maxLayerSize, layer.length);
+
+    layer.forEach((item, index) => {
+      positions.set(item.id, {
+        x: 40 + sortedDepths.indexOf(depth) * columnWidth,
+        y: 36 + index * rowHeight,
+      });
+    });
+  }
+
+  const width = Math.max(720, 80 + sortedDepths.length * columnWidth);
+  const height = Math.max(280, 76 + maxLayerSize * rowHeight);
+  const svg = createSvgElement('svg', {
+    class: 'trace-svg',
+    viewBox: `0 0 ${width} ${height}`,
+    width,
+    height,
+    role: 'img',
+    'aria-label': mode === 'forward' ? 'Input dependency graph' : 'Output dependency graph',
+  });
+
+  const defs = createSvgElement('defs');
+  const marker = createSvgElement('marker', {
+    id: `trace-arrow-${mode}`,
+    markerWidth: 10,
+    markerHeight: 10,
+    refX: 8,
+    refY: 3,
+    orient: 'auto',
+    markerUnits: 'strokeWidth',
+  });
+  marker.append(createSvgElement('path', { d: 'M0,0 L0,6 L9,3 z', class: 'trace-arrow' }));
+  defs.append(marker);
+  svg.append(defs);
+
+  const edgeLayer = createSvgElement('g', { class: 'trace-edges' });
+  const itemLayer = createSvgElement('g', { class: 'trace-items' });
+  svg.append(edgeLayer, itemLayer);
+
+  for (const edge of trace.edges) {
+    const fromId = `${edge.fromType}:${edge.from}`;
+    const toId = `${edge.toType}:${edge.to}`;
+    const from = positions.get(fromId);
+    const to = positions.get(toId);
+
+    if (!from || !to) {
+      continue;
+    }
+
+    const fromX = from.x + nodeWidth;
+    const fromY = from.y + nodeHeight / 2;
+    const toX = to.x;
+    const toY = to.y + nodeHeight / 2;
+    const midX = fromX + Math.max(36, (toX - fromX) / 2);
+    const path = createSvgElement('path', {
+      d: `M${fromX},${fromY} C${midX},${fromY} ${midX},${toY} ${toX},${toY}`,
+      class: 'trace-edge',
+      'marker-end': `url(#trace-arrow-${mode})`,
+    });
+    edgeLayer.append(path);
+  }
+
+  for (const item of graphItems) {
+    const position = positions.get(item.id);
+    if (!position) {
+      continue;
+    }
+
+    const group = createSvgElement('g', {
+      class:
+        item.kind === 'node'
+          ? 'trace-item trace-item-node'
+          : `trace-item trace-item-tensor trace-item-${getTensorKindClass(item.tensor?.kind)}`,
+      transform: `translate(${position.x}, ${position.y})`,
+    });
+    group.append(createSvgElement('rect', { width: nodeWidth, height: nodeHeight, rx: 8 }));
+
+    if (item.kind === 'node') {
+      appendTraceText(group, getTraceNodeLabel(item.node || {}), 12, 22, 'trace-item-title');
+      appendTraceText(group, item.node?.label || `Node #${item.nodeId + 1}`, 12, 40, 'trace-item-subtitle');
+    } else {
+      appendTraceText(group, item.tensor?.kind || 'Tensor', 12, 20, 'trace-item-title');
+      appendTraceText(group, item.name, 12, 39, 'trace-item-subtitle');
+    }
+
+    itemLayer.append(group);
+  }
+
+  dependencyTraceCanvas.append(svg);
+}
+
+function renderDependencyTraceTable(traceData, mode) {
+  dependencyTraceHead.innerHTML = '';
+  dependencyTraceBody.innerHTML = '';
+
+  const headRow = document.createElement('tr');
+  const headers =
+    mode === 'forward'
+      ? ['Output', 'Upstream inputs', 'Initializers', 'Nodes', 'Ops']
+      : ['Input', 'Downstream outputs', 'Initializers', 'Nodes', 'Ops'];
+
+  for (const label of headers) {
+    const th = document.createElement('th');
+    th.textContent = label;
+    headRow.append(th);
+  }
+  dependencyTraceHead.append(headRow);
+
+  const summaries = mode === 'forward' ? traceData.outputSummaries : traceData.inputSummaries;
+
+  for (const summary of summaries) {
+    const row = document.createElement('tr');
+    const nameCell = document.createElement('td');
+    nameCell.className = 'mono';
+    nameCell.textContent = summary.name;
+
+    const connectedCell = document.createElement('td');
+    const connectedPre = document.createElement('pre');
+    connectedPre.textContent = summary.connectedStarts.join('\n') || '(none)';
+    connectedCell.append(connectedPre);
+
+    const initializerCell = document.createElement('td');
+    const initializerPre = document.createElement('pre');
+    initializerPre.textContent = summary.initializerNames.join('\n') || '(none)';
+    initializerCell.append(initializerPre);
+
+    const nodesCell = document.createElement('td');
+    nodesCell.textContent = `${summary.nodeCount.toLocaleString()} nodes, depth ${summary.maxDepth}`;
+
+    const opCell = document.createElement('td');
+    const opPre = document.createElement('pre');
+    opPre.textContent = summary.opTypes.join(', ') || '(none)';
+    opCell.append(opPre);
+
+    row.append(nameCell, connectedCell, initializerCell, nodesCell, opCell);
+    dependencyTraceBody.append(row);
+  }
+}
+
+function renderDependencyTraceStats(traceData, mode) {
+  const trace = mode === 'forward' ? traceData.forward : traceData.backward;
+  const stats =
+    mode === 'forward'
+      ? [
+          ['Mode', 'Input graph'],
+          ['Starts', traceData.graphInputNames.length.toLocaleString()],
+          ['Reached outputs', traceData.outputSummaries.filter((item) => item.isReachableInFullTrace).length.toLocaleString()],
+          ['Nodes', trace.nodeIds.length.toLocaleString()],
+          ['Tensors', trace.tensorNames.length.toLocaleString()],
+          ['Edges', trace.edges.length.toLocaleString()],
+        ]
+      : [
+          ['Mode', 'Output graph'],
+          ['Starts', traceData.graphOutputNames.length.toLocaleString()],
+          ['Reached inputs', traceData.inputSummaries.filter((item) => item.isReachableInFullTrace).length.toLocaleString()],
+          ['Nodes', trace.nodeIds.length.toLocaleString()],
+          ['Tensors', trace.tensorNames.length.toLocaleString()],
+          ['Edges', trace.edges.length.toLocaleString()],
+        ];
+
+  dependencyTraceStats.innerHTML = '';
+  for (const [label, value] of stats) {
+    const item = document.createElement('div');
+    item.className = 'trace-stat';
+    const labelNode = document.createElement('span');
+    labelNode.className = 'trace-stat-label';
+    labelNode.textContent = label;
+    const valueNode = document.createElement('strong');
+    valueNode.textContent = value;
+    item.append(labelNode, valueNode);
+    dependencyTraceStats.append(item);
+  }
+}
+
+function renderDependencyTrace(traceData) {
+  if (!traceData) {
+    dependencyTracePanel.classList.add('hidden');
+    return;
+  }
+
+  dependencyTraceSubtitle.textContent =
+    activeTraceMode === 'forward'
+      ? 'Forward dependency trace from declared graph inputs toward model outputs.'
+      : 'Backward dependency trace from declared graph outputs toward model inputs.';
+  renderDependencyTraceStats(traceData, activeTraceMode);
+  renderDependencyTraceGraph(traceData, activeTraceMode);
+  renderDependencyTraceTable(traceData, activeTraceMode);
+  dependencyTracePanel.classList.remove('hidden');
+}
+
 function setDetailTableHeaders(labels) {
   detailHead.innerHTML = '';
   const row = document.createElement('tr');
@@ -912,6 +1245,7 @@ function resetPanels() {
   summaryPanel.classList.add('hidden');
   metadataPanel.classList.add('hidden');
   graphIoPanel.classList.add('hidden');
+  dependencyTracePanel.classList.add('hidden');
   detailPanel.classList.add('hidden');
 }
 
@@ -932,6 +1266,7 @@ function renderResult(result, file) {
   }
 
   renderGraphIo(result.graph.interface);
+  renderDependencyTrace(result.graph.dependencyTrace);
   renderOnnxNodes(result.graph.nodes);
 }
 
@@ -1006,6 +1341,14 @@ metadataFilter.addEventListener('input', () => {
   if (latestResult) {
     renderMetadata(latestResult.metadataEntries);
   }
+});
+
+traceForwardButton.addEventListener('click', () => {
+  setTraceMode('forward');
+});
+
+traceBackwardButton.addEventListener('click', () => {
+  setTraceMode('backward');
 });
 
 function maybeStartHashCalculation() {

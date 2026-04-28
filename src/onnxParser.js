@@ -366,6 +366,38 @@ function parseValueInfo(reader) {
   return info;
 }
 
+function parseTensorProto(reader) {
+  const tensor = {
+    name: '',
+    dataType: 'undefined',
+    dimensions: [],
+  };
+
+  while (!reader.eof()) {
+    const tag = reader.readTag();
+    if (!tag) {
+      break;
+    }
+
+    switch (tag.fieldNumber) {
+      case 1:
+        tensor.dimensions.push(formatInt64(reader.readVarint()));
+        break;
+      case 2:
+        tensor.dataType = TENSOR_DATA_TYPES[Number(reader.readVarint())] || 'unknown';
+        break;
+      case 8:
+        tensor.name = reader.readString();
+        break;
+      default:
+        reader.skipField(tag.wireType);
+        break;
+    }
+  }
+
+  return tensor;
+}
+
 function parseNodeProto(reader) {
   const node = {
     inputs: [],
@@ -418,6 +450,8 @@ function parseGraphProto(reader) {
     inputs: [],
     outputs: [],
     nodes: [],
+    initializers: [],
+    valueInfos: [],
     initializerCount: 0,
     sparseInitializerCount: 0,
     valueInfoCount: 0,
@@ -438,7 +472,7 @@ function parseGraphProto(reader) {
         break;
       case 5:
         graph.initializerCount += 1;
-        reader.skipField(tag.wireType);
+        graph.initializers.push(parseTensorProto(readSubMessage(reader)));
         break;
       case 10:
         graph.docString = reader.readString();
@@ -451,7 +485,7 @@ function parseGraphProto(reader) {
         break;
       case 13:
         graph.valueInfoCount += 1;
-        reader.skipField(tag.wireType);
+        graph.valueInfos.push(parseValueInfo(readSubMessage(reader)));
         break;
       case 15:
         graph.sparseInitializerCount += 1;
@@ -480,6 +514,8 @@ function parseModelProto(reader) {
       inputs: [],
       outputs: [],
       nodes: [],
+      initializers: [],
+      valueInfos: [],
       initializerCount: 0,
       sparseInitializerCount: 0,
       valueInfoCount: 0,
@@ -617,6 +653,251 @@ function buildMetadataEntries(model) {
   return entries;
 }
 
+function addUnique(list, value) {
+  if (value && !list.includes(value)) {
+    list.push(value);
+  }
+}
+
+function sortedValues(values) {
+  return Array.from(values).sort((left, right) => left.localeCompare(right));
+}
+
+function createTensorInfo(name, kind = 'Intermediate') {
+  return {
+    name,
+    kind,
+    typeDescription: '',
+    producerNodeIds: [],
+    consumerNodeIds: [],
+  };
+}
+
+function mergeTensorInfo(tensorsByName, name, updates = {}) {
+  if (!name) {
+    return null;
+  }
+
+  const existing = tensorsByName.get(name) || createTensorInfo(name);
+  Object.assign(existing, updates);
+  tensorsByName.set(name, existing);
+  return existing;
+}
+
+function buildTraceFromStarts({ starts, direction, nodesById, tensorsByName }) {
+  const visitedTensorNames = new Set();
+  const visitedNodeIds = new Set();
+  const edges = [];
+  const queue = starts.map((name) => ({ type: 'tensor', name, depth: 0 }));
+  const tensorDepths = new Map(starts.map((name) => [name, 0]));
+  const nodeDepths = new Map();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (current.type === 'tensor') {
+      const knownDepth = tensorDepths.get(current.name);
+      const depth = knownDepth === undefined ? current.depth : Math.min(knownDepth, current.depth);
+      tensorDepths.set(current.name, depth);
+
+      if (visitedTensorNames.has(current.name)) {
+        continue;
+      }
+
+      visitedTensorNames.add(current.name);
+      const tensor = tensorsByName.get(current.name);
+      const nextNodeIds = direction === 'forward' ? tensor?.consumerNodeIds || [] : tensor?.producerNodeIds || [];
+
+      for (const nodeId of nextNodeIds) {
+        const nodeDepth = depth + 1;
+        const previousDepth = nodeDepths.get(nodeId);
+        if (previousDepth === undefined || nodeDepth < previousDepth) {
+          nodeDepths.set(nodeId, nodeDepth);
+        }
+
+        edges.push({ fromType: 'tensor', from: current.name, toType: 'node', to: nodeId });
+        queue.push({ type: 'node', id: nodeId, depth: nodeDepth });
+      }
+
+      continue;
+    }
+
+    const knownDepth = nodeDepths.get(current.id);
+    const depth = knownDepth === undefined ? current.depth : Math.min(knownDepth, current.depth);
+    nodeDepths.set(current.id, depth);
+
+    if (visitedNodeIds.has(current.id)) {
+      continue;
+    }
+
+    visitedNodeIds.add(current.id);
+    const node = nodesById.get(current.id);
+    const nextTensorNames = direction === 'forward' ? node?.outputs || [] : node?.inputs || [];
+
+    for (const tensorName of nextTensorNames) {
+      const tensorDepth = depth + 1;
+      const previousDepth = tensorDepths.get(tensorName);
+      if (previousDepth === undefined || tensorDepth < previousDepth) {
+        tensorDepths.set(tensorName, tensorDepth);
+      }
+
+      edges.push({ fromType: 'node', from: current.id, toType: 'tensor', to: tensorName });
+      queue.push({ type: 'tensor', name: tensorName, depth: tensorDepth });
+    }
+  }
+
+  return {
+    tensorNames: sortedValues(visitedTensorNames),
+    nodeIds: Array.from(visitedNodeIds).sort((left, right) => left - right),
+    edges,
+    tensorDepths: Object.fromEntries(tensorDepths),
+    nodeDepths: Object.fromEntries(Array.from(nodeDepths, ([key, value]) => [String(key), value])),
+  };
+}
+
+function summarizeTrace({ starts, endpoints, trace, nodesById, tensorsByName, endpointKind }) {
+  return endpoints.map((endpoint) => {
+    const subTrace = buildTraceFromStarts({
+      starts: [endpoint],
+      direction: endpointKind === 'output' ? 'backward' : 'forward',
+      nodesById,
+      tensorsByName,
+    });
+    const tensorSet = new Set(subTrace.tensorNames);
+    const connectedStarts = starts.filter((name) => tensorSet.has(name));
+    const initializerNames = subTrace.tensorNames.filter(
+      (name) => tensorsByName.get(name)?.kind === 'Initializer'
+    );
+    const opTypes = new Set(
+      subTrace.nodeIds.map((nodeId) => nodesById.get(nodeId)?.opType).filter(Boolean)
+    );
+    const depths = [
+      ...Object.values(subTrace.tensorDepths),
+      ...Object.values(subTrace.nodeDepths),
+    ];
+
+    return {
+      name: endpoint,
+      connectedStarts,
+      initializerNames,
+      nodeCount: subTrace.nodeIds.length,
+      tensorCount: subTrace.tensorNames.length,
+      maxDepth: depths.length > 0 ? Math.max(...depths) : 0,
+      opTypes: sortedValues(opTypes),
+      isReachableInFullTrace: trace.tensorNames.includes(endpoint),
+    };
+  });
+}
+
+function buildDependencyTrace(model) {
+  const tensorsByName = new Map();
+  const nodesById = new Map();
+  const graphOutputNames = model.graph.outputs.map((item) => item.name).filter(Boolean);
+  const initializerNames = model.graph.initializers.map((item) => item.name).filter(Boolean);
+  const initializerNameSet = new Set(initializerNames);
+  const declaredGraphInputNames = model.graph.inputs.map((item) => item.name).filter(Boolean);
+  const graphInputNames = declaredGraphInputNames.filter((name) => !initializerNameSet.has(name));
+
+  for (const input of model.graph.inputs) {
+    mergeTensorInfo(tensorsByName, input.name, {
+      kind: initializerNameSet.has(input.name) ? 'InitializerInput' : 'Input',
+      typeDescription: input.typeDescription,
+    });
+  }
+
+  for (const output of model.graph.outputs) {
+    mergeTensorInfo(tensorsByName, output.name, {
+      kind: 'Output',
+      typeDescription: output.typeDescription,
+    });
+  }
+
+  for (const valueInfo of model.graph.valueInfos) {
+    mergeTensorInfo(tensorsByName, valueInfo.name, {
+      typeDescription: valueInfo.typeDescription,
+    });
+  }
+
+  for (const initializer of model.graph.initializers) {
+    mergeTensorInfo(tensorsByName, initializer.name, {
+      kind: tensorsByName.get(initializer.name)?.kind === 'Input' ? 'InitializerInput' : 'Initializer',
+      typeDescription: `tensor<${initializer.dataType}${
+        initializer.dimensions.length > 0 ? `[${initializer.dimensions.join(', ')}]` : ''
+      }>`,
+    });
+  }
+
+  model.graph.nodes.forEach((node, index) => {
+    const nodeInfo = {
+      id: index,
+      name: node.name || `node_${index}`,
+      label: node.name || `${node.opType || 'Node'} #${index + 1}`,
+      opType: node.opType || 'unknown',
+      domain: node.domain,
+      inputs: node.inputs,
+      outputs: node.outputs,
+      attributeCount: node.attributeCount,
+    };
+    nodesById.set(index, nodeInfo);
+
+    for (const inputName of node.inputs) {
+      const tensor = mergeTensorInfo(tensorsByName, inputName);
+      if (tensor) {
+        addUnique(tensor.consumerNodeIds, index);
+      }
+    }
+
+    for (const outputName of node.outputs) {
+      const tensor = mergeTensorInfo(tensorsByName, outputName);
+      if (tensor) {
+        addUnique(tensor.producerNodeIds, index);
+      }
+    }
+  });
+
+  const forward = buildTraceFromStarts({
+    starts: graphInputNames,
+    direction: 'forward',
+    nodesById,
+    tensorsByName,
+  });
+  const backward = buildTraceFromStarts({
+    starts: graphOutputNames,
+    direction: 'backward',
+    nodesById,
+    tensorsByName,
+  });
+
+  return {
+    graphInputNames,
+    declaredGraphInputNames,
+    graphOutputNames,
+    initializerNames,
+    tensors: Array.from(tensorsByName.values()).sort((left, right) =>
+      left.name.localeCompare(right.name)
+    ),
+    nodes: Array.from(nodesById.values()),
+    forward,
+    backward,
+    outputSummaries: summarizeTrace({
+      starts: graphInputNames,
+      endpoints: graphOutputNames,
+      trace: forward,
+      nodesById,
+      tensorsByName,
+      endpointKind: 'output',
+    }),
+    inputSummaries: summarizeTrace({
+      starts: graphOutputNames,
+      endpoints: graphInputNames,
+      trace: backward,
+      nodesById,
+      tensorsByName,
+      endpointKind: 'input',
+    }),
+  };
+}
+
 export async function parseOnnx(file) {
   const arrayBuffer = await file.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
@@ -626,6 +907,7 @@ export async function parseOnnx(file) {
     ...model.graph.inputs.map((item) => ({ ...item, direction: 'Input' })),
     ...model.graph.outputs.map((item) => ({ ...item, direction: 'Output' })),
   ];
+  const dependencyTrace = buildDependencyTrace(model);
 
   return {
     kind: 'onnx',
@@ -644,6 +926,7 @@ export async function parseOnnx(file) {
       name: model.graph.name,
       interface: interfaceItems,
       nodes: model.graph.nodes,
+      dependencyTrace,
     },
     model,
   };
