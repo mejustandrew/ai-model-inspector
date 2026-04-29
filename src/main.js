@@ -275,6 +275,9 @@ const GRAPH_CONNECTION_DISTANCE_SQUARED = GRAPH_CONNECTION_DISTANCE ** 2;
 const GRAPH_PARTICLE_AREA = 18000;
 const GRAPH_MIN_PARTICLES = 36;
 const GRAPH_MAX_PARTICLES = 110;
+const GRAPH_MIN_PARTICLE_SPEED = 0.08;
+const GRAPH_MAX_PARTICLE_SPEED = 0.24;
+const GRAPH_FRAME_INTERVAL = 1000 / 45;
 const THEME_STORAGE_KEY = 'ami-theme';
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 let activeTraceMode = 'forward';
@@ -343,6 +346,7 @@ function setupDynamicGraphBackground(canvas) {
   let width = 0;
   let height = 0;
   let animationFrameId = 0;
+  let lastFrameTime = 0;
   let isFrozen = false;
   let particleFillStyle = 'rgba(148, 193, 255, 0.8)';
   let lineColor = '111, 170, 255';
@@ -352,7 +356,7 @@ function setupDynamicGraphBackground(canvas) {
   }
 
   function createParticle() {
-    const speed = randomBetween(0.12, 0.42);
+    const speed = randomBetween(GRAPH_MIN_PARTICLE_SPEED, GRAPH_MAX_PARTICLE_SPEED);
     const direction = randomBetween(0, Math.PI * 2);
 
     return {
@@ -454,13 +458,20 @@ function setupDynamicGraphBackground(canvas) {
     drawGraph();
   }
 
-  function animate() {
+  function animate(timestamp = 0) {
     if (document.hidden || mediaQuery.matches || smallScreenQuery.matches || isFrozen) {
       renderFrame();
       animationFrameId = 0;
+      lastFrameTime = 0;
       return;
     }
 
+    if (lastFrameTime && timestamp - lastFrameTime < GRAPH_FRAME_INTERVAL) {
+      animationFrameId = window.requestAnimationFrame(animate);
+      return;
+    }
+
+    lastFrameTime = timestamp;
     updateParticles();
     drawGraph();
     animationFrameId = window.requestAnimationFrame(animate);
@@ -480,6 +491,7 @@ function setupDynamicGraphBackground(canvas) {
         window.cancelAnimationFrame(animationFrameId);
         animationFrameId = 0;
       }
+      lastFrameTime = 0;
       renderFrame();
       return;
     }
