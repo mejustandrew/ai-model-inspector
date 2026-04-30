@@ -30,16 +30,7 @@ app.innerHTML = `
   </div>
   <main class="shell">
     <section class="hero">
-      <p class="eyebrow">Static Model Inspector</p>
       <h1>Private AI model inspection directly in your browser.</h1>
-      <p class="lede">
-        Drop a <code>.gguf</code> or <code>.onnx</code> file to inspect headers, metadata, graph
-        structure, and tensor or node indexes without uploading anything to a server.
-      </p>
-      <p class="lede">
-        Built for private AI model inspection and local model analysis when you need to review
-        GGUF or ONNX files offline, on-device.
-      </p>
       <p class="lede source-link">
         This project is
         <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">
@@ -70,6 +61,18 @@ app.innerHTML = `
           </button>
         </div>
       </div>
+    </section>
+
+    <section class="intro-copy" aria-label="About AI Model Inspector">
+      <p class="lede">
+        AI Model Inspector is an analyzer for AI models. Drop a <code>.gguf</code> or
+        <code>.onnx</code> file to visualize headers, metadata, graph structure, and tensor or
+        node indexes without uploading anything to a server.
+      </p>
+      <p class="lede">
+        Review the extracted details in your browser, download the full result as JSON, and
+        calculate the model SHA-256 hash on demand when you need a reproducible file fingerprint.
+      </p>
     </section>
 
     <section class="panel hidden collapsible-panel" id="summary-panel" data-collapsed="false">
