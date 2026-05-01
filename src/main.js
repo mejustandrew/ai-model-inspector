@@ -43,14 +43,30 @@ app.innerHTML = `
 
 
     <section class="panel upload-panel">
-      <label class="dropzone" for="file-input" id="dropzone">
-        <input id="file-input" type="file" accept=".gguf,.onnx,application/octet-stream" />
-        <span class="dropzone-title">Choose a GGUF or ONNX file</span>
-        <div class="dropzone-selection hidden" id="dropzone-selection">
-          <span class="dropzone-file mono" id="dropzone-file"></span>
-        </div>
-        <span class="dropzone-copy">or drag and drop it here</span>
-      </label>
+      <div class="upload-dropzones" id="upload-dropzones">
+        <label class="dropzone" for="file-input" id="dropzone">
+          <input id="file-input" type="file" accept=".gguf,.onnx,application/octet-stream" multiple />
+          <button class="dropzone-remove hidden" id="dropzone-remove" type="button" aria-label="Remove first model">
+            X
+          </button>
+          <span class="dropzone-title">Choose one model file to run simple analysis, or two for direct comparison</span>
+          <div class="dropzone-selection hidden" id="dropzone-selection">
+            <span class="dropzone-file mono" id="dropzone-file"></span>
+          </div>
+          <span class="dropzone-copy">or drag and drop it here</span>
+        </label>
+        <label class="dropzone compare-dropzone hidden" for="compare-file-input" id="compare-dropzone">
+          <input id="compare-file-input" type="file" accept=".gguf,.onnx,application/octet-stream" />
+          <button class="dropzone-remove hidden" id="compare-dropzone-remove" type="button" aria-label="Remove second model">
+            X
+          </button>
+          <span class="dropzone-title">Add a second model for comparison</span>
+          <div class="dropzone-selection hidden" id="compare-dropzone-selection">
+            <span class="dropzone-file mono" id="compare-dropzone-file"></span>
+          </div>
+          <span class="dropzone-copy">or drag and drop it here</span>
+        </label>
+      </div>
       <div class="upload-feedback">
         <div class="status" id="status">Waiting for a GGUF or ONNX file.</div>
         <div class="hash-status hidden mono" id="dropzone-hash">
@@ -93,6 +109,39 @@ app.innerHTML = `
       </div>
       <div class="panel-body">
         <div class="summary-grid" id="summary-grid"></div>
+      </div>
+    </section>
+
+    <section class="panel hidden collapsible-panel" id="compare-panel" data-collapsed="false">
+      <div class="panel-head">
+        <div>
+          <h2>Comparison</h2>
+          <p id="compare-subtitle">Common data first, then entries that differ or exist in only one model.</p>
+        </div>
+        <div class="panel-actions">
+          <button
+            class="panel-toggle"
+            type="button"
+            data-panel-toggle
+            aria-expanded="true"
+            aria-label="Collapse section"
+          ></button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="summary-grid" id="compare-summary-grid"></div>
+        <div class="metadata-table-wrap">
+          <table class="metadata-table compare-table">
+            <thead>
+              <tr>
+                <th>Data path</th>
+                <th id="compare-left-title">Model A</th>
+                <th id="compare-right-title">Model B</th>
+              </tr>
+            </thead>
+            <tbody id="compare-body"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -234,15 +283,28 @@ const graphBackground = document.querySelector('#graph-background');
 const themeToggle = document.querySelector('#theme-toggle');
 const motionToggle = document.querySelector('#motion-toggle');
 const fileInput = document.querySelector('#file-input');
+const compareFileInput = document.querySelector('#compare-file-input');
+const uploadDropzones = document.querySelector('#upload-dropzones');
 const dropzone = document.querySelector('#dropzone');
+const compareDropzone = document.querySelector('#compare-dropzone');
 const dropzoneSelection = document.querySelector('#dropzone-selection');
 const dropzoneFile = document.querySelector('#dropzone-file');
+const compareDropzoneSelection = document.querySelector('#compare-dropzone-selection');
+const compareDropzoneFile = document.querySelector('#compare-dropzone-file');
+const dropzoneRemoveButton = document.querySelector('#dropzone-remove');
+const compareDropzoneRemoveButton = document.querySelector('#compare-dropzone-remove');
 const dropzoneHash = document.querySelector('#dropzone-hash');
 const dropzoneHashValue = document.querySelector('#dropzone-hash-value');
 const hashCancelButton = document.querySelector('#hash-cancel');
 const status = document.querySelector('#status');
 const summaryPanel = document.querySelector('#summary-panel');
 const summaryGrid = document.querySelector('#summary-grid');
+const comparePanel = document.querySelector('#compare-panel');
+const compareSubtitle = document.querySelector('#compare-subtitle');
+const compareSummaryGrid = document.querySelector('#compare-summary-grid');
+const compareLeftTitle = document.querySelector('#compare-left-title');
+const compareRightTitle = document.querySelector('#compare-right-title');
+const compareBody = document.querySelector('#compare-body');
 const metadataPanel = document.querySelector('#metadata-panel');
 const metadataTitle = document.querySelector('#metadata-title');
 const metadataSubtitle = document.querySelector('#metadata-subtitle');
@@ -268,10 +330,14 @@ const collapsiblePanels = document.querySelectorAll('.collapsible-panel');
 
 let latestResult = null;
 let latestFile = null;
+let pendingUploadMode = 'replace';
+let modelSlots = [null, null];
+let uploadPaneSplit = false;
 let activeFileToken = 0;
 let hashWorker = null;
 const COLLAPSIBLE_VALUE_LENGTH = 2000;
 const COLLAPSIBLE_ARRAY_LENGTH = 40;
+const COLLAPSIBLE_COMPARE_VALUE_LENGTH = 120;
 const COPY_RESET_DELAY_MS = 1500;
 const GRAPH_CONNECTION_DISTANCE = 140;
 const GRAPH_CONNECTION_DISTANCE_SQUARED = GRAPH_CONNECTION_DISTANCE ** 2;
@@ -661,9 +727,14 @@ function setTraceMode(mode) {
 
 function resetUploadSelection() {
   dropzoneFile.textContent = '';
+  compareDropzoneFile.textContent = '';
   dropzoneHashValue.textContent = '';
   dropzoneSelection.classList.add('hidden');
+  compareDropzoneSelection.classList.add('hidden');
+  dropzoneRemoveButton.classList.add('hidden');
+  compareDropzoneRemoveButton.classList.add('hidden');
   dropzoneHash.classList.add('hidden');
+  setCompareDropzoneVisible(false);
   hashCancelButton.classList.add('hidden');
   dropzoneHashValue.removeAttribute('role');
   dropzoneHashValue.removeAttribute('tabindex');
@@ -671,8 +742,50 @@ function resetUploadSelection() {
   dropzoneHashValue.classList.remove('hash-action-text');
 }
 
-function renderUploadSelection(file, hashState = { phase: 'idle' }) {
-  dropzoneFile.textContent = file.name;
+function setCompareDropzoneVisible(visible) {
+  uploadPaneSplit = visible;
+  compareDropzone.classList.toggle('hidden', !visible);
+  uploadDropzones.classList.toggle('has-compare-dropzone', visible);
+  fileInput.multiple = !visible;
+}
+
+function setUploadSlot(index, file, result) {
+  modelSlots[index] = file && result ? { file, result } : null;
+}
+
+function resetUploadSlots() {
+  modelSlots = [null, null];
+}
+
+function renderSlotSelections(showCompare = false) {
+  const leftFile = modelSlots[0]?.file;
+  const rightFile = modelSlots[1]?.file;
+
+  dropzoneFile.textContent = leftFile ? leftFile.name : '';
+  dropzoneSelection.classList.toggle('hidden', !leftFile);
+  dropzoneRemoveButton.classList.toggle('hidden', !leftFile);
+  compareDropzoneFile.textContent = rightFile ? rightFile.name : '';
+  compareDropzoneSelection.classList.toggle('hidden', !rightFile);
+  compareDropzoneRemoveButton.classList.toggle('hidden', !rightFile);
+  setCompareDropzoneVisible(showCompare || Boolean(rightFile));
+}
+
+function renderUploadSelection(files, hashState = { phase: 'idle' }) {
+  const selectedFiles = Array.isArray(files) ? files : [files];
+  dropzoneFile.textContent = selectedFiles[0]?.name || '';
+  dropzoneRemoveButton.classList.toggle('hidden', !modelSlots[0]);
+  compareDropzoneFile.textContent = selectedFiles[1]?.name || modelSlots[1]?.file.name || '';
+  compareDropzoneSelection.classList.toggle('hidden', !compareDropzoneFile.textContent);
+  compareDropzoneRemoveButton.classList.toggle('hidden', !modelSlots[1]);
+  setCompareDropzoneVisible(uploadPaneSplit || selectedFiles.length > 1 || Boolean(modelSlots[1]));
+
+  if (selectedFiles.length !== 1) {
+    dropzoneHash.classList.add('hidden');
+    hashCancelButton.classList.add('hidden');
+    dropzoneSelection.classList.remove('hidden');
+    return;
+  }
+
   dropzoneHash.classList.remove('hidden');
   dropzoneHashValue.removeAttribute('aria-disabled');
 
@@ -1255,9 +1368,174 @@ function renderOnnxNodes(nodes) {
   detailPanel.classList.remove('hidden');
 }
 
+function addComparableValue(entries, path, value) {
+  entries.set(path, formatValue(value));
+}
+
+function addComparableList(entries, path, values) {
+  entries.set(path, values.length ? values.join('\n') : '(none)');
+}
+
+function flattenComparableData(result, file) {
+  const entries = new Map();
+
+  addComparableValue(entries, 'file.name', file.name);
+  addComparableValue(entries, 'file.size', file.size);
+  addComparableValue(entries, 'format', result.kind.toUpperCase());
+
+  Object.entries(result.header).forEach(([key, value]) => {
+    addComparableValue(entries, `header.${key}`, value);
+  });
+
+  result.metadataEntries.forEach((entry) => {
+    addComparableValue(entries, `metadata.${entry.key}`, entry.value);
+  });
+
+  if (result.kind === 'gguf') {
+    result.tensors.forEach((tensor, index) => {
+      const tensorPath = `tensors.${tensor.name || `#${index + 1}`}`;
+      addComparableList(entries, `${tensorPath}.dimensions`, tensor.dimensions.map(String));
+      addComparableValue(entries, `${tensorPath}.ggmlType`, tensor.ggmlType);
+      addComparableValue(entries, `${tensorPath}.offset`, tensor.offset);
+    });
+    return entries;
+  }
+
+  addComparableValue(entries, 'graph.name', result.graph.name || '(unnamed)');
+
+  result.graph.interface.forEach((item) => {
+    const direction = item.direction.toLowerCase();
+    const itemPath = `graph.${direction}.${item.name}`;
+    addComparableValue(entries, `${itemPath}.type`, item.typeDescription || 'unknown');
+  });
+
+  result.graph.nodes.forEach((node, index) => {
+    const nodePath = `graph.nodes.${node.name || `#${index + 1}`}`;
+    addComparableValue(entries, `${nodePath}.opType`, node.domain ? `${node.domain}::${node.opType}` : node.opType);
+    addComparableList(entries, `${nodePath}.inputs`, node.inputs);
+    addComparableList(entries, `${nodePath}.outputs`, node.outputs);
+  });
+
+  return entries;
+}
+
+function buildComparisonRows(leftResult, leftFile, rightResult, rightFile) {
+  const leftEntries = flattenComparableData(leftResult, leftFile);
+  const rightEntries = flattenComparableData(rightResult, rightFile);
+  const paths = Array.from(new Set([...leftEntries.keys(), ...rightEntries.keys()]));
+
+  return paths.map((path) => {
+    const leftHasValue = leftEntries.has(path);
+    const rightHasValue = rightEntries.has(path);
+    const leftValue = leftEntries.get(path) || '';
+    const rightValue = rightEntries.get(path) || '';
+    let statusKey = 'changed';
+    let statusLabel = 'Different';
+
+    if (leftHasValue && rightHasValue && leftValue === rightValue) {
+      statusKey = 'common';
+      statusLabel = 'Common';
+    } else if (leftHasValue && !rightHasValue) {
+      statusKey = 'left-only';
+      statusLabel = 'Only in A';
+    } else if (!leftHasValue && rightHasValue) {
+      statusKey = 'right-only';
+      statusLabel = 'Only in B';
+    }
+
+    return {
+      path,
+      leftValue,
+      rightValue,
+      statusKey,
+      statusLabel,
+    };
+  }).sort((left, right) => {
+    const leftPresenceOrder =
+      left.statusKey === 'common' || left.statusKey === 'changed' ? 0 : 1;
+    const rightPresenceOrder =
+      right.statusKey === 'common' || right.statusKey === 'changed' ? 0 : 1;
+
+    return leftPresenceOrder - rightPresenceOrder || left.path.localeCompare(right.path);
+  });
+}
+
+function appendCompareValueCell(row, value, statusKey) {
+  const cell = document.createElement('td');
+  cell.className = `compare-value-cell compare-value-cell-${statusKey}`;
+  const valueText = value || '-';
+  const lineCount = valueText.split('\n').length;
+  const shouldCollapse = lineCount > 1 || valueText.length > COLLAPSIBLE_COMPARE_VALUE_LENGTH;
+
+  if (shouldCollapse) {
+    const details = document.createElement('details');
+    details.className = 'value-details compare-value-details';
+
+    const summary = document.createElement('summary');
+    summary.className = 'value-summary';
+    summary.textContent =
+      lineCount > 1
+        ? `Show value (${lineCount.toLocaleString()} lines)`
+        : `Show value (${valueText.length.toLocaleString()} chars)`;
+
+    const pre = document.createElement('pre');
+    pre.textContent = valueText;
+
+    details.append(summary, pre);
+    cell.append(details);
+    row.append(cell);
+    return;
+  }
+
+  const pre = document.createElement('pre');
+  pre.textContent = valueText;
+  cell.append(pre);
+  row.append(cell);
+}
+
+function renderComparison(leftResult, leftFile, rightResult, rightFile) {
+  const rows = buildComparisonRows(leftResult, leftFile, rightResult, rightFile);
+  const commonCount = rows.filter((row) => row.statusKey === 'common').length;
+  const changedCount = rows.filter((row) => row.statusKey === 'changed').length;
+  const leftOnlyCount = rows.filter((row) => row.statusKey === 'left-only').length;
+  const rightOnlyCount = rows.filter((row) => row.statusKey === 'right-only').length;
+
+  compareSubtitle.textContent = `${leftFile.name} compared with ${rightFile.name}.`;
+  compareLeftTitle.textContent = leftFile.name;
+  compareRightTitle.textContent = rightFile.name;
+  compareSummaryGrid.innerHTML = '';
+  compareBody.innerHTML = '';
+
+  [
+    ['Common entries', commonCount.toLocaleString()],
+    ['Different values', changedCount.toLocaleString()],
+    [`Only in ${leftFile.name}`, leftOnlyCount.toLocaleString()],
+    [`Only in ${rightFile.name}`, rightOnlyCount.toLocaleString()],
+  ].forEach(([label, value]) => {
+    compareSummaryGrid.append(createSummaryCard(label, value));
+  });
+
+  for (const item of rows) {
+    const row = document.createElement('tr');
+    row.dataset.compareStatus = item.statusKey;
+
+    const pathCell = document.createElement('td');
+    pathCell.className = 'mono';
+    pathCell.textContent = item.path;
+
+    row.append(pathCell);
+    appendCompareValueCell(row, item.leftValue, item.statusKey);
+    appendCompareValueCell(row, item.rightValue, item.statusKey);
+    compareBody.append(row);
+  }
+
+  comparePanel.classList.remove('hidden');
+}
+
 function resetPanels() {
   expandAllPanels();
   summaryPanel.classList.add('hidden');
+  comparePanel.classList.add('hidden');
   metadataPanel.classList.add('hidden');
   graphIoPanel.classList.add('hidden');
   dependencyTracePanel.classList.add('hidden');
@@ -1299,21 +1577,120 @@ async function parseModelFile(file) {
   throw new Error('Unsupported file type. Please choose a .gguf or .onnx file.');
 }
 
+function getSupportedModelFormat(file) {
+  const lowerName = file.name.toLowerCase();
+
+  if (lowerName.endsWith('.gguf')) {
+    return 'gguf';
+  }
+
+  if (lowerName.endsWith('.onnx')) {
+    return 'onnx';
+  }
+
+  return null;
+}
+
 function setStatus(message, isError = false) {
   status.textContent = message;
   status.dataset.state = isError ? 'error' : 'normal';
 }
 
-async function handleFile(file) {
-  if (!file) {
+function getReadyHashState(result) {
+  return result.fileHash
+    ? { phase: 'complete', value: result.fileHash }
+    : { phase: 'ready' };
+}
+
+function resetActiveModelState() {
+  latestResult = null;
+  latestFile = null;
+  resetUploadSlots();
+}
+
+function resetFileInput() {
+  fileInput.value = '';
+  compareFileInput.value = '';
+  pendingUploadMode = 'replace';
+  fileInput.multiple = !uploadDropzones.classList.contains('has-compare-dropzone');
+}
+
+function renderSingleModelState(slot, removedFileName = '') {
+  terminateHashWorker();
+  resetUploadSlots();
+  latestResult = slot.result;
+  latestFile = slot.file;
+  setUploadSlot(0, slot.file, slot.result);
+  uploadPaneSplit = false;
+  renderUploadSelection(slot.file, getReadyHashState(slot.result));
+  resetPanels();
+  renderResult(slot.result, slot.file);
+  setStatus(
+    removedFileName
+      ? `Removed ${removedFileName}. Showing ${slot.file.name}.`
+      : `Showing ${slot.file.name}.`
+  );
+  resetFileInput();
+}
+
+function removeUploadSlot(slotIndex) {
+  const removedSlot = modelSlots[slotIndex];
+  if (!removedSlot) {
+    return;
+  }
+
+  const remainingSlot = modelSlots[slotIndex === 0 ? 1 : 0];
+
+  if (remainingSlot) {
+    renderSingleModelState(remainingSlot, removedSlot.file.name);
+    return;
+  }
+
+  terminateHashWorker();
+  resetActiveModelState();
+  resetUploadSelection();
+  resetPanels();
+  setStatus('Waiting for a GGUF or ONNX file.');
+  resetFileInput();
+}
+
+async function handleSlotReplacement(file, slotIndex) {
+  const otherSlot = modelSlots[slotIndex === 0 ? 1 : 0];
+  const nextFormat = getSupportedModelFormat(file);
+
+  if (!nextFormat) {
+    setStatus('Unsupported file type. Please choose a .gguf or .onnx file.', true);
+    resetFileInput();
+    return;
+  }
+
+  if (slotIndex === 1 && !modelSlots[0]) {
+    setStatus('Choose a first model before adding a comparison model.', true);
+    resetFileInput();
+    return;
+  }
+
+  if (otherSlot && getSupportedModelFormat(otherSlot.file) !== nextFormat) {
+    setStatus('Comparison requires two models of the same format: two GGUF files or two ONNX files.', true);
+    resetFileInput();
     return;
   }
 
   const fileToken = activeFileToken + 1;
   activeFileToken = fileToken;
   terminateHashWorker();
-  latestFile = file;
-  renderUploadSelection(file, { phase: 'ready' });
+  dropzoneHash.classList.add('hidden');
+  hashCancelButton.classList.add('hidden');
+
+  if (slotIndex === 0) {
+    dropzoneFile.textContent = file.name;
+    dropzoneSelection.classList.remove('hidden');
+  } else {
+    compareDropzoneFile.textContent = file.name;
+    compareDropzoneSelection.classList.remove('hidden');
+  }
+
+  setCompareDropzoneVisible(true);
   setStatus(`Reading ${file.name}...`);
 
   try {
@@ -1322,8 +1699,24 @@ async function handleFile(file) {
       return;
     }
 
-    latestResult = result;
+    if (otherSlot && otherSlot.result.kind !== result.kind) {
+      throw new Error('Comparison requires two models of the same parsed format.');
+    }
+
+    setUploadSlot(slotIndex, file, result);
+    renderSlotSelections(true);
     resetPanels();
+
+    if (modelSlots[0] && modelSlots[1]) {
+      latestResult = null;
+      latestFile = null;
+      renderComparison(modelSlots[0].result, modelSlots[0].file, modelSlots[1].result, modelSlots[1].file);
+      setStatus(`Compared ${modelSlots[0].file.name} with ${modelSlots[1].file.name}.`);
+      return;
+    }
+
+    latestResult = result;
+    latestFile = file;
     renderResult(result, file);
 
     if (result.kind === 'gguf') {
@@ -1337,19 +1730,155 @@ async function handleFile(file) {
     if (fileToken !== activeFileToken) {
       return;
     }
-    latestResult = null;
-    latestFile = null;
-    resetUploadSelection();
-    resetPanels();
+
+    renderSlotSelections(true);
     setStatus(toUserFacingError(error, file).message, true);
   } finally {
-    fileInput.value = '';
+    resetFileInput();
   }
 }
 
+async function handleFiles(files, mode = 'replace') {
+  const selectedFiles = Array.from(files).filter(Boolean);
+
+  if (selectedFiles.length === 0) {
+    resetFileInput();
+    return;
+  }
+
+  if (mode === 'replace-left' || mode === 'replace-right') {
+    if (selectedFiles.length !== 1) {
+      setStatus('Choose one model for this pane.', true);
+      resetFileInput();
+      return;
+    }
+
+    await handleSlotReplacement(selectedFiles[0], mode === 'replace-left' ? 0 : 1);
+    return;
+  }
+
+  if (selectedFiles.length > 2) {
+    resetActiveModelState();
+    terminateHashWorker();
+    resetUploadSelection();
+    resetPanels();
+    setStatus('Please choose one model to inspect or two models to compare.', true);
+    resetFileInput();
+    return;
+  }
+
+  const formats = selectedFiles.map(getSupportedModelFormat);
+  if (formats.some((format) => !format)) {
+    resetActiveModelState();
+    terminateHashWorker();
+    resetUploadSelection();
+    resetPanels();
+    setStatus('Unsupported file type. Please choose .gguf or .onnx files.', true);
+    resetFileInput();
+    return;
+  }
+
+  if (new Set(formats).size > 1) {
+    resetActiveModelState();
+    terminateHashWorker();
+    resetUploadSelection();
+    resetPanels();
+    setStatus('Comparison requires two models of the same format: two GGUF files or two ONNX files.', true);
+    resetFileInput();
+    return;
+  }
+
+  const fileToken = activeFileToken + 1;
+  activeFileToken = fileToken;
+  terminateHashWorker();
+  latestFile = selectedFiles.length === 1 ? selectedFiles[0] : null;
+  renderUploadSelection(selectedFiles, { phase: 'ready' });
+  setStatus(
+    selectedFiles.length === 1
+      ? `Reading ${selectedFiles[0].name}...`
+      : `Reading ${selectedFiles[0].name} and ${selectedFiles[1].name}...`
+  );
+
+  try {
+    const results = await Promise.all(selectedFiles.map((file) => parseModelFile(file)));
+    if (fileToken !== activeFileToken) {
+      return;
+    }
+
+    resetPanels();
+
+    if (results.length === 1) {
+      const [result] = results;
+      const [file] = selectedFiles;
+      latestResult = result;
+      latestFile = file;
+      setUploadSlot(0, file, result);
+      setUploadSlot(1, null, null);
+      renderResult(result, file);
+      renderSlotSelections(true);
+
+      if (result.kind === 'gguf') {
+        setStatus(`Parsed ${result.header.metadataCount} metadata entries from ${file.name}.`);
+      } else {
+        setStatus(
+          `Parsed ${result.header.nodeCount} graph nodes and ${result.header.metadataCount} metadata entries from ${file.name}.`
+        );
+      }
+
+      return;
+    }
+
+    const [leftResult, rightResult] = results;
+    if (leftResult.kind !== rightResult.kind) {
+      throw new Error('Comparison requires two models of the same parsed format.');
+    }
+
+    latestResult = null;
+    latestFile = null;
+    setUploadSlot(0, selectedFiles[0], leftResult);
+    setUploadSlot(1, selectedFiles[1], rightResult);
+    renderSlotSelections(true);
+    renderComparison(leftResult, selectedFiles[0], rightResult, selectedFiles[1]);
+    setStatus(`Compared ${selectedFiles[0].name} with ${selectedFiles[1].name}.`);
+  } catch (error) {
+    if (fileToken !== activeFileToken) {
+      return;
+    }
+    resetActiveModelState();
+    resetUploadSelection();
+    resetPanels();
+    setStatus(toUserFacingError(error, selectedFiles[0]).message, true);
+  } finally {
+    resetFileInput();
+  }
+}
+
+fileInput.addEventListener('click', (event) => {
+  event.stopPropagation();
+});
+
 fileInput.addEventListener('change', (event) => {
-  const [file] = event.target.files;
-  handleFile(file);
+  handleFiles(event.target.files, pendingUploadMode);
+});
+
+compareFileInput.addEventListener('click', (event) => {
+  event.stopPropagation();
+});
+
+compareFileInput.addEventListener('change', (event) => {
+  handleFiles(event.target.files, 'replace-right');
+});
+
+dropzoneRemoveButton.addEventListener('click', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  removeUploadSlot(0);
+});
+
+compareDropzoneRemoveButton.addEventListener('click', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  removeUploadSlot(1);
 });
 
 metadataFilter.addEventListener('input', () => {
@@ -1417,22 +1946,38 @@ downloadJsonButton.addEventListener('click', () => {
 });
 
 ['dragenter', 'dragover'].forEach((eventName) => {
-  dropzone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    dropzone.classList.add('dragging');
+  [dropzone, compareDropzone].forEach((zone) => {
+    zone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      zone.classList.add('dragging');
+    });
   });
 });
 
 ['dragleave', 'drop'].forEach((eventName) => {
-  dropzone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    dropzone.classList.remove('dragging');
+  [dropzone, compareDropzone].forEach((zone) => {
+    zone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      zone.classList.remove('dragging');
+    });
   });
 });
 
+dropzone.addEventListener('click', () => {
+  const isSplit = uploadDropzones.classList.contains('has-compare-dropzone');
+  pendingUploadMode = isSplit ? 'replace-left' : 'replace';
+  fileInput.multiple = !isSplit;
+});
+
 dropzone.addEventListener('drop', (event) => {
-  const [file] = event.dataTransfer.files;
-  handleFile(file);
+  const isSplit = uploadDropzones.classList.contains('has-compare-dropzone');
+  pendingUploadMode = isSplit ? 'replace-left' : 'replace';
+  fileInput.multiple = !isSplit;
+  handleFiles(event.dataTransfer.files, pendingUploadMode);
+});
+
+compareDropzone.addEventListener('drop', (event) => {
+  handleFiles(event.dataTransfer.files, 'replace-right');
 });
 
 collapsiblePanels.forEach((panel) => {

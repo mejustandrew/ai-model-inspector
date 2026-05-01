@@ -228,7 +228,18 @@ body {
   padding: 1rem;
 }
 
+.upload-dropzones {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.upload-dropzones.has-compare-dropzone {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .dropzone {
+  position: relative;
   display: grid;
   place-items: center;
   gap: 0.35rem;
@@ -251,6 +262,31 @@ body {
 
 .dropzone input {
   display: none;
+}
+
+.dropzone-remove {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--control-color);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: var(--control-shadow);
+}
+
+.dropzone-remove:hover,
+.dropzone-remove:focus-visible {
+  background: var(--control-bg-hover);
+  color: var(--control-color-hover);
 }
 
 .dropzone-title {
@@ -488,6 +524,37 @@ button:hover {
   font: inherit;
 }
 
+.compare-table th:nth-child(1),
+.compare-table td:nth-child(1) {
+  min-width: 14rem;
+}
+
+.compare-value-cell-common {
+  background: rgba(75, 210, 150, 0.08);
+}
+
+.compare-value-cell-changed {
+  background: rgba(255, 202, 92, 0.1);
+}
+
+.compare-value-cell-left-only,
+.compare-value-cell-right-only {
+  background: rgba(122, 176, 255, 0.08);
+}
+
+:root[data-theme='light'] .compare-value-cell-common {
+  background: rgba(38, 151, 95, 0.08);
+}
+
+:root[data-theme='light'] .compare-value-cell-changed {
+  background: rgba(177, 122, 0, 0.09);
+}
+
+:root[data-theme='light'] .compare-value-cell-left-only,
+:root[data-theme='light'] .compare-value-cell-right-only {
+  background: rgba(62, 122, 226, 0.07);
+}
+
 .value-cell {
   display: block;
 }
@@ -552,6 +619,10 @@ button:hover {
 
 .value-details pre {
   margin-top: 0.65rem;
+}
+
+.compare-value-details {
+  max-width: 34rem;
 }
 
 .value-content > pre {
@@ -712,6 +783,10 @@ button:hover {
   .panel-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .upload-dropzones.has-compare-dropzone {
+    grid-template-columns: 1fr;
   }
 
   input[type='search'] {
