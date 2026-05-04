@@ -89,6 +89,21 @@ app.innerHTML = `
         Review the extracted details in your browser, download the full result as JSON, and
         calculate the model SHA-256 hash on demand when you need a reproducible file fingerprint.
       </p>
+      <p class="lede">
+        All the functionality is available online. It doesn't need complex prerequisites other than a recent browser.
+        No installation is required, just bookmark the page to have it handy.
+      </p>
+      <p class="lede">
+        This product is centered around privacy.Even though the analyzer is available as a website, no model data leaves your PC.
+        In order to be fully transparent on this matter, the code has been made public and the request made by the site can be verified.
+        If you want to report any issue, feel free to raise <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">
+          one on GitHub.
+        </a>
+      </p>
+      <p class="lede">
+        The AI Model Inspector allows you to compare two models' metadata directly in the browser, without needing to downlaod them as JSONs.
+        You can switch easily between the models comparison mode and single model inspection mode by uploading two files or cancelling one of them. 
+      </p>
     </section>
 
     <section class="panel hidden collapsible-panel" id="summary-panel" data-collapsed="false">
