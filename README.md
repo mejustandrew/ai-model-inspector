@@ -52,3 +52,15 @@ npm run preview
 ## Development
 
 The main application code lives in `src/main.js`. Format-specific parsers live in `src/ggufParser.js` and `src/onnxParser.js`, and SHA-256 hashing runs in `src/hashWorker.js`.
+
+## Deploy
+
+```bash
+firebase deploy
+```
+
+running on windows may need 
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
