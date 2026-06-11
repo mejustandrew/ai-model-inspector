@@ -1,6 +1,11 @@
 import './style.css';
 import { parseGguf } from './ggufParser.js';
 import { parseOnnx } from './onnxParser.js';
+import {
+  estimateInferenceResources,
+  getDefaultInferenceSettings,
+  getInferenceContextOptions,
+} from './resourceEstimator.js';
 
 const app = document.querySelector('#app');
 
@@ -90,6 +95,11 @@ app.innerHTML = `
         calculate the model SHA-256 hash on demand when you need a reproducible file fingerprint.
       </p>
       <p class="lede">
+        Estimate the RAM needed for inference from the model's weights and key-value cache
+        structure. Choose a context length and batch size to explore different workloads; actual
+        memory usage may vary by inference engine, cache precision, and CPU or GPU offloading.
+      </p>
+      <p class="lede">
         All the functionality is available online. It doesn't need complex prerequisites other than a recent browser.
         No installation is required, just bookmark the page to have it handy.
       </p>
@@ -124,6 +134,47 @@ app.innerHTML = `
       </div>
       <div class="panel-body">
         <div class="summary-grid" id="summary-grid"></div>
+      </div>
+    </section>
+
+    <section class="panel hidden collapsible-panel" id="resource-panel" data-collapsed="false">
+      <div class="panel-head">
+        <div>
+          <h2>Inference RAM Estimate</h2>
+          <p>Estimated CPU memory for one loaded model. Adjust the workload assumptions below.</p>
+        </div>
+        <div class="panel-actions resource-controls">
+          <label>
+            Context tokens
+            <select id="resource-context"></select>
+          </label>
+          <label>
+            Batch size
+            <select id="resource-batch">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+            </select>
+          </label>
+          <button
+            class="panel-toggle"
+            type="button"
+            data-panel-toggle
+            aria-expanded="true"
+            aria-label="Collapse section"
+          ></button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="summary-grid" id="resource-summary-grid"></div>
+        <div class="resource-notes" id="resource-notes"></div>
       </div>
     </section>
 
@@ -314,6 +365,11 @@ const hashCancelButton = document.querySelector('#hash-cancel');
 const status = document.querySelector('#status');
 const summaryPanel = document.querySelector('#summary-panel');
 const summaryGrid = document.querySelector('#summary-grid');
+const resourcePanel = document.querySelector('#resource-panel');
+const resourceContextInput = document.querySelector('#resource-context');
+const resourceBatchInput = document.querySelector('#resource-batch');
+const resourceSummaryGrid = document.querySelector('#resource-summary-grid');
+const resourceNotes = document.querySelector('#resource-notes');
 const comparePanel = document.querySelector('#compare-panel');
 const compareSubtitle = document.querySelector('#compare-subtitle');
 const compareSummaryGrid = document.querySelector('#compare-summary-grid');
@@ -720,6 +776,24 @@ function createSummaryCard(label, value) {
   return card;
 }
 
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return 'Unknown';
+  }
+
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  const precision = value >= 100 || unitIndex === 0 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}
+
 function createSvgElement(tagName, attributes = {}) {
   const element = document.createElementNS(SVG_NAMESPACE, tagName);
 
@@ -947,6 +1021,71 @@ function renderSummary(result, file) {
   });
 
   summaryPanel.classList.remove('hidden');
+}
+
+function formatTokenCount(value) {
+  if (value >= 1024 && value % 1024 === 0) {
+    return `${value / 1024}K`;
+  }
+
+  return value.toLocaleString();
+}
+
+function renderResourceEstimate(result, resetSettings = false) {
+  let contextSource;
+
+  if (resetSettings) {
+    const defaults = getDefaultInferenceSettings(result);
+    resourceContextInput.innerHTML = '';
+
+    getInferenceContextOptions(result).forEach(({ value, isModelMaximum }) => {
+      const option = document.createElement('option');
+      option.value = String(value);
+      option.textContent = `${formatTokenCount(value)} tokens${
+        isModelMaximum ? ' (model maximum)' : ''
+      }`;
+      resourceContextInput.append(option);
+    });
+
+    resourceContextInput.value = String(defaults.contextLength);
+    resourceBatchInput.value = String(defaults.batchSize);
+    contextSource = defaults.contextSource;
+  }
+
+  const estimate = estimateInferenceResources(result, {
+    contextLength: Number(resourceContextInput.value),
+    batchSize: Number(resourceBatchInput.value),
+    contextSource,
+  });
+
+  resourceSummaryGrid.innerHTML = '';
+  [
+    ['Model weights', formatBytes(estimate.weightsBytes)],
+    ['KV cache', formatBytes(estimate.kvCacheBytes)],
+    ['Weights + cache', formatBytes(estimate.coreBytes)],
+    ['Estimated total', formatBytes(estimate.estimatedTotalBytes)],
+    ['Runtime allowance', formatBytes(estimate.runtimeOverheadBytes)],
+    ['Confidence', estimate.confidence],
+  ].forEach(([label, value]) => {
+    resourceSummaryGrid.append(createSummaryCard(label, value));
+  });
+
+  resourceNotes.innerHTML = '';
+  const assumption = document.createElement('p');
+  assumption.className = 'resource-assumption';
+  assumption.textContent =
+    `${estimate.contextSource}: ${estimate.contextLength.toLocaleString()} tokens, ` +
+    `batch size ${estimate.batchSize.toLocaleString()}.`;
+  resourceNotes.append(assumption);
+
+  const noteList = document.createElement('ul');
+  estimate.notes.forEach((note) => {
+    const item = document.createElement('li');
+    item.textContent = note;
+    noteList.append(item);
+  });
+  resourceNotes.append(noteList);
+  resourcePanel.classList.remove('hidden');
 }
 
 function renderMetadata(entries) {
@@ -1393,10 +1532,31 @@ function addComparableList(entries, path, values) {
 
 function flattenComparableData(result, file) {
   const entries = new Map();
+  const resourceEstimate = estimateInferenceResources(result);
 
   addComparableValue(entries, 'file.name', file.name);
   addComparableValue(entries, 'file.size', file.size);
   addComparableValue(entries, 'format', result.kind.toUpperCase());
+  addComparableValue(
+    entries,
+    'inference.context_tokens',
+    resourceEstimate.contextLength
+  );
+  addComparableValue(
+    entries,
+    'inference.estimated_weight_ram',
+    formatBytes(resourceEstimate.weightsBytes)
+  );
+  addComparableValue(
+    entries,
+    'inference.estimated_kv_cache_ram',
+    formatBytes(resourceEstimate.kvCacheBytes)
+  );
+  addComparableValue(
+    entries,
+    'inference.estimated_total_ram',
+    formatBytes(resourceEstimate.estimatedTotalBytes)
+  );
 
   Object.entries(result.header).forEach(([key, value]) => {
     addComparableValue(entries, `header.${key}`, value);
@@ -1550,6 +1710,7 @@ function renderComparison(leftResult, leftFile, rightResult, rightFile) {
 function resetPanels() {
   expandAllPanels();
   summaryPanel.classList.add('hidden');
+  resourcePanel.classList.add('hidden');
   comparePanel.classList.add('hidden');
   metadataPanel.classList.add('hidden');
   graphIoPanel.classList.add('hidden');
@@ -1559,6 +1720,7 @@ function resetPanels() {
 
 function renderResult(result, file) {
   renderSummary(result, file);
+  renderResourceEstimate(result, true);
 
   metadataTitle.textContent = result.kind === 'gguf' ? 'Metadata' : 'Model Properties';
   metadataSubtitle.textContent =
@@ -1900,6 +2062,14 @@ metadataFilter.addEventListener('input', () => {
   if (latestResult) {
     renderMetadata(latestResult.metadataEntries);
   }
+});
+
+[resourceContextInput, resourceBatchInput].forEach((input) => {
+  input.addEventListener('change', () => {
+    if (latestResult) {
+      renderResourceEstimate(latestResult);
+    }
+  });
 });
 
 traceForwardButton.addEventListener('click', () => {

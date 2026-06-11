@@ -312,6 +312,8 @@ export async function parseGguf(blob) {
   for (let index = 0; index < tensorCount; index += 1) {
     tensors.push(await readTensorInfo(reader));
   }
+  const alignment = Number(metadata['general.alignment']) || 32;
+  const tensorDataOffset = Math.ceil(reader.bytesRead / alignment) * alignment;
 
   return {
     kind: 'gguf',
@@ -321,6 +323,7 @@ export async function parseGguf(blob) {
       tensorCount,
       metadataCount,
       bytesRead: reader.bytesRead,
+      tensorDataOffset,
       fileSize: blob.size,
     },
     metadata,

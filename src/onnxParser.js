@@ -241,7 +241,13 @@ function parseTensorType(reader) {
   }
 
   const shapeText = shape.length > 0 ? `[${shape.join(', ')}]` : '';
-  return `tensor<${elemType}${shapeText}>`;
+  return {
+    description: `tensor<${elemType}${shapeText}>`,
+    tensorType: {
+      elementType: elemType,
+      dimensions: shape,
+    },
+  };
 }
 
 function parseSequenceType(reader) {
@@ -254,13 +260,13 @@ function parseSequenceType(reader) {
     }
 
     if (tag.fieldNumber === 1 && tag.wireType === 2) {
-      elementType = parseTypeProto(readSubMessage(reader));
+      elementType = parseTypeProto(readSubMessage(reader)).description;
     } else {
       reader.skipField(tag.wireType);
     }
   }
 
-  return `sequence<${elementType}>`;
+  return { description: `sequence<${elementType}>`, tensorType: null };
 }
 
 function parseOptionalType(reader) {
@@ -273,13 +279,13 @@ function parseOptionalType(reader) {
     }
 
     if (tag.fieldNumber === 1 && tag.wireType === 2) {
-      elementType = parseTypeProto(readSubMessage(reader));
+      elementType = parseTypeProto(readSubMessage(reader)).description;
     } else {
       reader.skipField(tag.wireType);
     }
   }
 
-  return `optional<${elementType}>`;
+  return { description: `optional<${elementType}>`, tensorType: null };
 }
 
 function parseMapType(reader) {
@@ -297,7 +303,7 @@ function parseMapType(reader) {
         keyType = TENSOR_DATA_TYPES[Number(reader.readVarint())] || 'unknown';
         break;
       case 2:
-        valueType = parseTypeProto(readSubMessage(reader));
+        valueType = parseTypeProto(readSubMessage(reader)).description;
         break;
       default:
         reader.skipField(tag.wireType);
@@ -305,7 +311,7 @@ function parseMapType(reader) {
     }
   }
 
-  return `map<${keyType}, ${valueType}>`;
+  return { description: `map<${keyType}, ${valueType}>`, tensorType: null };
 }
 
 function parseTypeProto(reader) {
@@ -331,13 +337,14 @@ function parseTypeProto(reader) {
     }
   }
 
-  return 'unknown';
+  return { description: 'unknown', tensorType: null };
 }
 
 function parseValueInfo(reader) {
   const info = {
     name: '',
     typeDescription: 'unknown',
+    tensorType: null,
     docString: '',
   };
 
@@ -352,7 +359,11 @@ function parseValueInfo(reader) {
         info.name = reader.readString();
         break;
       case 2:
-        info.typeDescription = parseTypeProto(readSubMessage(reader));
+        {
+          const parsedType = parseTypeProto(readSubMessage(reader));
+          info.typeDescription = parsedType.description;
+          info.tensorType = parsedType.tensorType;
+        }
         break;
       case 3:
         info.docString = reader.readString();
