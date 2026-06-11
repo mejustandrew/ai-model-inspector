@@ -426,7 +426,7 @@ body {
 
 .resource-assumption {
   margin: 0;
-  color: var(--text);
+  color: var(--ink);
   font-weight: 700;
 }
 
@@ -437,6 +437,64 @@ body {
 
 .resource-notes li + li {
   margin-top: 0.35rem;
+}
+
+.quantization-requirements {
+  margin: 0 1rem 1rem;
+  border: 1px solid var(--summary-card-border);
+  border-radius: 18px;
+  background: rgba(5, 13, 24, 0.18);
+  overflow: hidden;
+}
+
+:root[data-theme='light'] .quantization-requirements {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.quantization-requirements-head {
+  padding: 1.2rem 1.2rem 0;
+}
+
+.quantization-requirements-head h3 {
+  margin: 0;
+}
+
+.quantization-requirements-head p {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+}
+
+.quantization-table-wrap {
+  padding-top: 0.8rem;
+  padding-bottom: 0.6rem;
+}
+
+.quantization-table th:nth-child(1),
+.quantization-table td:nth-child(1) {
+  min-width: 11rem;
+}
+
+.quantization-table th:nth-child(3),
+.quantization-table td:nth-child(3),
+.quantization-table th:nth-child(4),
+.quantization-table td:nth-child(4) {
+  min-width: 13rem;
+}
+
+.quantization-table tr[data-closest-to-uploaded='true'] td {
+  background: rgba(47, 124, 246, 0.08);
+}
+
+.quantization-current-marker {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--accent-strong);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.quantization-notes {
+  padding-top: 0;
 }
 
 .panel-head {

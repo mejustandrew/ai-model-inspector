@@ -1,6 +1,7 @@
 const MEBIBYTE = 1024 ** 2;
 const DEFAULT_ONNX_CONTEXT_LENGTH = 4096;
 const DEFAULT_RUNTIME_OVERHEAD_RATIO = 0.1;
+const MINIMUM_RUNTIME_OVERHEAD_BYTES = 256 * MEBIBYTE;
 const CONTEXT_PRESETS = [
   512,
   1024,
@@ -16,6 +17,80 @@ const CONTEXT_PRESETS = [
   1048576,
 ];
 const FALLBACK_CONTEXT_MAX = 32768;
+const GGUF_QUANTIZATION_PROFILES = [
+  {
+    name: 'Q2_K',
+    minBitsPerWeight: 2.8,
+    maxBitsPerWeight: 3.2,
+    guidance: 'Smallest, highest quality loss',
+  },
+  {
+    name: 'Q3_K_S',
+    minBitsPerWeight: 3.3,
+    maxBitsPerWeight: 3.7,
+    guidance: 'Very small',
+  },
+  {
+    name: 'Q3_K_M',
+    minBitsPerWeight: 3.7,
+    maxBitsPerWeight: 4.1,
+    guidance: 'Small, more balanced',
+  },
+  {
+    name: 'Q3_K_L',
+    minBitsPerWeight: 4.1,
+    maxBitsPerWeight: 4.5,
+    guidance: 'Larger 3-bit mix',
+  },
+  {
+    name: 'Q4_0',
+    minBitsPerWeight: 4.4,
+    maxBitsPerWeight: 4.7,
+    guidance: 'Legacy 4-bit',
+  },
+  {
+    name: 'Q4_K_S',
+    minBitsPerWeight: 4.4,
+    maxBitsPerWeight: 4.8,
+    guidance: 'Balanced 4-bit',
+  },
+  {
+    name: 'Q4_K_M',
+    minBitsPerWeight: 4.7,
+    maxBitsPerWeight: 5.1,
+    guidance: 'Common quality/size default',
+  },
+  {
+    name: 'Q5_K_S',
+    minBitsPerWeight: 5.3,
+    maxBitsPerWeight: 5.7,
+    guidance: 'Higher quality',
+  },
+  {
+    name: 'Q5_K_M',
+    minBitsPerWeight: 5.6,
+    maxBitsPerWeight: 6,
+    guidance: 'Higher quality, larger mix',
+  },
+  {
+    name: 'Q6_K',
+    minBitsPerWeight: 6.5,
+    maxBitsPerWeight: 6.9,
+    guidance: 'Near-high precision',
+  },
+  {
+    name: 'Q8_0',
+    minBitsPerWeight: 8.3,
+    maxBitsPerWeight: 8.7,
+    guidance: 'Very high quality',
+  },
+  {
+    name: 'F16 / BF16',
+    minBitsPerWeight: 16,
+    maxBitsPerWeight: 16.4,
+    guidance: 'Source/highest precision',
+  },
+];
 
 const ONNX_DATA_TYPE_BYTES = {
   float32: 4,
@@ -84,7 +159,7 @@ function isKvCacheTensor(item) {
   );
 }
 
-function calculateOnnxKvCache(interfaceItems, contextLength, batchSize) {
+function calculateOnnxKvCache(interfaceItems, contextLength, parallelSequences) {
   const outputs = interfaceItems.filter(
     (item) => item.direction === 'Output' && isKvCacheTensor(item)
   );
@@ -112,7 +187,7 @@ function calculateOnnxKvCache(interfaceItems, contextLength, batchSize) {
       }
 
       if (/batch/i.test(dimension)) {
-        elementCount *= batchSize;
+        elementCount *= parallelSequences;
       } else if (/(?:past_|total_)?sequence|context/i.test(dimension)) {
         elementCount *= contextLength;
         foundSequenceDimension = true;
@@ -133,7 +208,7 @@ function calculateOnnxKvCache(interfaceItems, contextLength, batchSize) {
   };
 }
 
-function estimateGguf(result, contextLength, batchSize) {
+function estimateGguf(result, contextLength, parallelSequences) {
   const metadata = result.metadata || {};
   const architecture = metadata['general.architecture'];
   const prefix = architecture ? `${architecture}.` : '';
@@ -162,7 +237,7 @@ function estimateGguf(result, contextLength, batchSize) {
       (keyLength + valueLength) *
       2 *
       contextLength *
-      batchSize;
+      parallelSequences;
   } else {
     notes.push('KV cache could not be derived from the available architecture metadata.');
   }
@@ -183,10 +258,51 @@ function estimateGguf(result, contextLength, batchSize) {
   };
 }
 
-function estimateOnnx(result, contextLength, batchSize) {
+function calculateGgufParameterCount(tensors) {
+  let parameterCount = 0;
+
+  for (const tensor of tensors || []) {
+    if (!Array.isArray(tensor.dimensions) || tensor.dimensions.length === 0) {
+      continue;
+    }
+
+    const tensorParameters = tensor.dimensions.reduce((product, dimension) => {
+      const size = finitePositiveNumber(dimension);
+      return size ? product * size : 0;
+    }, 1);
+
+    if (!Number.isSafeInteger(tensorParameters) || tensorParameters <= 0) {
+      return null;
+    }
+
+    parameterCount += tensorParameters;
+    if (!Number.isSafeInteger(parameterCount)) {
+      return null;
+    }
+  }
+
+  return parameterCount || null;
+}
+
+function calculateRuntimeOverhead(weightsBytes) {
+  return Math.max(
+    MINIMUM_RUNTIME_OVERHEAD_BYTES,
+    weightsBytes * DEFAULT_RUNTIME_OVERHEAD_RATIO
+  );
+}
+
+function calculateProjectedTotal(weightsBytes, kvCacheBytes) {
+  return weightsBytes + kvCacheBytes + calculateRuntimeOverhead(weightsBytes);
+}
+
+function estimateOnnx(result, contextLength, parallelSequences) {
   const initializers = result.model?.graph?.initializers || [];
   const weights = calculateOnnxWeights(initializers);
-  const kvCache = calculateOnnxKvCache(result.graph?.interface || [], contextLength, batchSize);
+  const kvCache = calculateOnnxKvCache(
+    result.graph?.interface || [],
+    contextLength,
+    parallelSequences
+  );
   const notes = [
     'ONNX weight memory is calculated from initializer shapes and data types, including external-data tensors.',
   ];
@@ -226,14 +342,14 @@ export function getDefaultInferenceSettings(result) {
 
     return {
       contextLength: declaredContext || DEFAULT_ONNX_CONTEXT_LENGTH,
-      batchSize: 1,
+      parallelSequences: 1,
       contextSource: declaredContext ? 'Declared model context' : 'Assumed context',
     };
   }
 
   return {
     contextLength: DEFAULT_ONNX_CONTEXT_LENGTH,
-    batchSize: 1,
+    parallelSequences: 1,
     contextSource: 'Assumed context',
   };
 }
@@ -260,20 +376,20 @@ export function estimateInferenceResources(result, settings = {}) {
   const defaults = getDefaultInferenceSettings(result);
   const contextLength =
     finitePositiveNumber(settings.contextLength) || defaults.contextLength;
-  const batchSize = finitePositiveNumber(settings.batchSize) || defaults.batchSize;
+  const parallelSequences =
+    finitePositiveNumber(settings.parallelSequences) ||
+    finitePositiveNumber(settings.batchSize) ||
+    defaults.parallelSequences;
   const formatEstimate =
     result.kind === 'gguf'
-      ? estimateGguf(result, contextLength, batchSize)
-      : estimateOnnx(result, contextLength, batchSize);
-  const runtimeOverheadBytes = Math.max(
-    256 * MEBIBYTE,
-    formatEstimate.weightsBytes * DEFAULT_RUNTIME_OVERHEAD_RATIO
-  );
+      ? estimateGguf(result, contextLength, parallelSequences)
+      : estimateOnnx(result, contextLength, parallelSequences);
+  const runtimeOverheadBytes = calculateRuntimeOverhead(formatEstimate.weightsBytes);
   const coreBytes = formatEstimate.weightsBytes + formatEstimate.kvCacheBytes;
 
   return {
     contextLength,
-    batchSize,
+    parallelSequences,
     contextSource:
       settings.contextSource ||
       (settings.contextLength ? 'Selected context' : defaults.contextSource),
@@ -289,5 +405,61 @@ export function estimateInferenceResources(result, settings = {}) {
       'Actual RAM depends on the inference engine, memory mapping, cache precision, and CPU/GPU offload.',
     ],
     details: formatEstimate.details,
+  };
+}
+
+export function getGgufQuantizationRequirements(result, settings = {}) {
+  if (result.kind !== 'gguf') {
+    return null;
+  }
+
+  const parameterCount = calculateGgufParameterCount(result.tensors);
+  if (!parameterCount) {
+    return null;
+  }
+
+  const currentEstimate = estimateInferenceResources(result, settings);
+  const tensorDataOffset = finitePositiveNumber(result.header.tensorDataOffset) || 0;
+  const currentBitsPerWeight = (currentEstimate.weightsBytes * 8) / parameterCount;
+  const rows = GGUF_QUANTIZATION_PROFILES.map((profile) => {
+    const minimumWeightsBytes = parameterCount * profile.minBitsPerWeight / 8;
+    const maximumWeightsBytes = parameterCount * profile.maxBitsPerWeight / 8;
+    const midpointBitsPerWeight =
+      (profile.minBitsPerWeight + profile.maxBitsPerWeight) / 2;
+
+    return {
+      ...profile,
+      minimumFileBytes: minimumWeightsBytes + tensorDataOffset,
+      maximumFileBytes: maximumWeightsBytes + tensorDataOffset,
+      minimumTotalBytes: calculateProjectedTotal(
+        minimumWeightsBytes,
+        currentEstimate.kvCacheBytes
+      ),
+      maximumTotalBytes: calculateProjectedTotal(
+        maximumWeightsBytes,
+        currentEstimate.kvCacheBytes
+      ),
+      distanceFromCurrentBits: Math.abs(midpointBitsPerWeight - currentBitsPerWeight),
+    };
+  });
+  const closestDistance = Math.min(...rows.map((row) => row.distanceFromCurrentBits));
+
+  return {
+    parameterCount,
+    currentBitsPerWeight,
+    currentFileBytes: result.header.fileSize,
+    currentTotalBytes: currentEstimate.estimatedTotalBytes,
+    kvCacheBytes: currentEstimate.kvCacheBytes,
+    contextLength: currentEstimate.contextLength,
+    parallelSequences: currentEstimate.parallelSequences,
+    rows: rows.map((row) => ({
+      ...row,
+      isClosestToUploaded: row.distanceFromCurrentBits === closestDistance,
+    })),
+    notes: [
+      'Projected sizes use effective bits-per-weight ranges for common mixed GGUF quantizations.',
+      'Exact output size varies by architecture, quantizer version, tensor mix, and alignment.',
+      'Quantize from F16 or BF16 when possible; requantizing an already quantized model compounds quality loss.',
+    ],
   };
 }

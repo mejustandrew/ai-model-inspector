@@ -11,7 +11,8 @@ Just access the site, upload the model and you are good to go. It does not requi
 
 - Inspect `.gguf` model headers, metadata entries, and tensor descriptors.
 - Inspect `.onnx` model properties, graph inputs and outputs, nodes, and metadata.
-- Estimate inference RAM from model weights, KV-cache structure, context length, and batch size.
+- Estimate inference RAM from model weights, KV-cache structure, context length, and parallel sequences.
+- Project file size and total RAM requirements for common alternative GGUF quantizations.
 - Search extracted metadata.
 - Copy individual metadata values.
 - Download the parsed result as JSON.

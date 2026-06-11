@@ -4,6 +4,7 @@ import { parseOnnx } from './onnxParser.js';
 import {
   estimateInferenceResources,
   getDefaultInferenceSettings,
+  getGgufQuantizationRequirements,
   getInferenceContextOptions,
 } from './resourceEstimator.js';
 
@@ -96,8 +97,9 @@ app.innerHTML = `
       </p>
       <p class="lede">
         Estimate the RAM needed for inference from the model's weights and key-value cache
-        structure. Choose a context length and batch size to explore different workloads; actual
-        memory usage may vary by inference engine, cache precision, and CPU or GPU offloading.
+        structure. Choose a context length and number of parallel sequences to explore different
+        workloads; actual memory usage may vary by inference engine, cache precision, and CPU or
+        GPU offloading.
       </p>
       <p class="lede">
         All the functionality is available online. It doesn't need complex prerequisites other than a recent browser.
@@ -149,7 +151,7 @@ app.innerHTML = `
             <select id="resource-context"></select>
           </label>
           <label>
-            Batch size
+            Parallel sequences
             <select id="resource-batch">
               <option value="1">1</option>
               <option value="2">2</option>
@@ -175,6 +177,28 @@ app.innerHTML = `
       <div class="panel-body">
         <div class="summary-grid" id="resource-summary-grid"></div>
         <div class="resource-notes" id="resource-notes"></div>
+        <section class="quantization-requirements hidden" id="quantization-requirements">
+          <div class="quantization-requirements-head">
+            <div>
+              <h3>Alternative GGUF Quantizations</h3>
+              <p id="quantization-requirements-summary"></p>
+            </div>
+          </div>
+          <div class="metadata-table-wrap quantization-table-wrap">
+            <table class="metadata-table quantization-table">
+              <thead>
+                <tr>
+                  <th>Quantization</th>
+                  <th>Trade-off</th>
+                  <th>Projected file size</th>
+                  <th>Estimated total RAM</th>
+                </tr>
+              </thead>
+              <tbody id="quantization-requirements-body"></tbody>
+            </table>
+          </div>
+          <div class="resource-notes quantization-notes" id="quantization-requirements-notes"></div>
+        </section>
       </div>
     </section>
 
@@ -370,6 +394,16 @@ const resourceContextInput = document.querySelector('#resource-context');
 const resourceBatchInput = document.querySelector('#resource-batch');
 const resourceSummaryGrid = document.querySelector('#resource-summary-grid');
 const resourceNotes = document.querySelector('#resource-notes');
+const quantizationRequirements = document.querySelector('#quantization-requirements');
+const quantizationRequirementsSummary = document.querySelector(
+  '#quantization-requirements-summary'
+);
+const quantizationRequirementsBody = document.querySelector(
+  '#quantization-requirements-body'
+);
+const quantizationRequirementsNotes = document.querySelector(
+  '#quantization-requirements-notes'
+);
 const comparePanel = document.querySelector('#compare-panel');
 const compareSubtitle = document.querySelector('#compare-subtitle');
 const compareSummaryGrid = document.querySelector('#compare-summary-grid');
@@ -794,6 +828,32 @@ function formatBytes(bytes) {
   return `${value.toFixed(precision)} ${units[unitIndex]}`;
 }
 
+function formatByteRange(minimumBytes, maximumBytes) {
+  if (Math.abs(maximumBytes - minimumBytes) < 1024) {
+    return formatBytes(minimumBytes);
+  }
+
+  return `${formatBytes(minimumBytes)} - ${formatBytes(maximumBytes)}`;
+}
+
+function formatParameterCount(value) {
+  const units = [
+    [1e12, 'T'],
+    [1e9, 'B'],
+    [1e6, 'M'],
+  ];
+  const unit = units.find(([threshold]) => value >= threshold);
+
+  if (!unit) {
+    return value.toLocaleString();
+  }
+
+  const [threshold, suffix] = unit;
+  const scaled = value / threshold;
+  const precision = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+  return `${scaled.toFixed(precision)}${suffix}`;
+}
+
 function createSvgElement(tagName, attributes = {}) {
   const element = document.createElementNS(SVG_NAMESPACE, tagName);
 
@@ -1048,13 +1108,13 @@ function renderResourceEstimate(result, resetSettings = false) {
     });
 
     resourceContextInput.value = String(defaults.contextLength);
-    resourceBatchInput.value = String(defaults.batchSize);
+    resourceBatchInput.value = String(defaults.parallelSequences);
     contextSource = defaults.contextSource;
   }
 
   const estimate = estimateInferenceResources(result, {
     contextLength: Number(resourceContextInput.value),
-    batchSize: Number(resourceBatchInput.value),
+    parallelSequences: Number(resourceBatchInput.value),
     contextSource,
   });
 
@@ -1075,7 +1135,9 @@ function renderResourceEstimate(result, resetSettings = false) {
   assumption.className = 'resource-assumption';
   assumption.textContent =
     `${estimate.contextSource}: ${estimate.contextLength.toLocaleString()} tokens, ` +
-    `batch size ${estimate.batchSize.toLocaleString()}.`;
+    `${estimate.parallelSequences.toLocaleString()} parallel sequence${
+      estimate.parallelSequences === 1 ? '' : 's'
+    }.`;
   resourceNotes.append(assumption);
 
   const noteList = document.createElement('ul');
@@ -1085,7 +1147,78 @@ function renderResourceEstimate(result, resetSettings = false) {
     noteList.append(item);
   });
   resourceNotes.append(noteList);
+  renderQuantizationRequirements(result, estimate);
   resourcePanel.classList.remove('hidden');
+}
+
+function renderQuantizationRequirements(result, estimate) {
+  quantizationRequirementsBody.innerHTML = '';
+  quantizationRequirementsNotes.innerHTML = '';
+
+  const requirements = getGgufQuantizationRequirements(result, {
+    contextLength: estimate.contextLength,
+    parallelSequences: estimate.parallelSequences,
+    contextSource: estimate.contextSource,
+  });
+
+  if (!requirements) {
+    quantizationRequirements.classList.add('hidden');
+    return;
+  }
+
+  quantizationRequirementsSummary.textContent =
+    `${formatParameterCount(requirements.parameterCount)} parameters. ` +
+    `The uploaded file uses approximately ${requirements.currentBitsPerWeight.toFixed(2)} ` +
+    `effective bits per weight and needs about ${formatBytes(requirements.currentTotalBytes)} ` +
+    `at the selected workload.`;
+
+  requirements.rows.forEach((requirement) => {
+    const row = document.createElement('tr');
+    if (requirement.isClosestToUploaded) {
+      row.dataset.closestToUploaded = 'true';
+    }
+
+    const quantizationCell = document.createElement('td');
+    const quantizationName = document.createElement('strong');
+    quantizationName.textContent = requirement.name;
+    quantizationCell.append(quantizationName);
+
+    if (requirement.isClosestToUploaded) {
+      const marker = document.createElement('span');
+      marker.className = 'quantization-current-marker';
+      marker.textContent = 'Closest to uploaded size';
+      quantizationCell.append(marker);
+    }
+
+    const guidanceCell = document.createElement('td');
+    guidanceCell.textContent = requirement.guidance;
+
+    const fileSizeCell = document.createElement('td');
+    fileSizeCell.className = 'mono';
+    fileSizeCell.textContent = formatByteRange(
+      requirement.minimumFileBytes,
+      requirement.maximumFileBytes
+    );
+
+    const memoryCell = document.createElement('td');
+    memoryCell.className = 'mono';
+    memoryCell.textContent = formatByteRange(
+      requirement.minimumTotalBytes,
+      requirement.maximumTotalBytes
+    );
+
+    row.append(quantizationCell, guidanceCell, fileSizeCell, memoryCell);
+    quantizationRequirementsBody.append(row);
+  });
+
+  const noteList = document.createElement('ul');
+  requirements.notes.forEach((note) => {
+    const item = document.createElement('li');
+    item.textContent = note;
+    noteList.append(item);
+  });
+  quantizationRequirementsNotes.append(noteList);
+  quantizationRequirements.classList.remove('hidden');
 }
 
 function renderMetadata(entries) {
