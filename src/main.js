@@ -36,30 +36,35 @@ app.innerHTML = `
   </div>
   <main class="shell">
     <section class="hero">
+      <p class="eyebrow">Local GGUF & ONNX analysis</p>
       <h1>Private AI model inspection directly in your browser.</h1>
-      <p class="lede source-link">
-        This project is
+      <p class="hero-summary">
+        Inspect metadata, explore model structure, compare files, and estimate inference RAM.
+        Your model stays on your device.
+      </p>
+      <p class="source-link">
+        No account or installation required. The project is
         <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">
           public on GitHub
-        </a>
-        .
+        </a>.
       </p>
-      <p class="lede">Your model, your data.</p>
     </section>
 
 
-    <section class="panel upload-panel">
+    <section class="panel upload-panel" id="upload-panel">
       <div class="upload-dropzones" id="upload-dropzones">
         <label class="dropzone" for="file-input" id="dropzone">
           <input id="file-input" type="file" accept=".gguf,.onnx,application/octet-stream" multiple />
           <button class="dropzone-remove hidden" id="dropzone-remove" type="button" aria-label="Remove first model">
             X
           </button>
-          <span class="dropzone-title">Choose one model file to run simple analysis, or two for direct comparison</span>
+          <span class="dropzone-title">Drop GGUF or ONNX files here</span>
+          <span class="dropzone-guidance">Use one file to inspect or two files to compare.</span>
+          <span class="dropzone-button" aria-hidden="true">Choose files</span>
           <div class="dropzone-selection hidden" id="dropzone-selection">
             <span class="dropzone-file mono" id="dropzone-file"></span>
           </div>
-          <span class="dropzone-copy">or drag and drop it here</span>
+          <span class="dropzone-copy">Files are processed locally and never uploaded.</span>
         </label>
         <label class="dropzone compare-dropzone hidden" for="compare-file-input" id="compare-dropzone">
           <input id="compare-file-input" type="file" accept=".gguf,.onnx,application/octet-stream" />
@@ -67,10 +72,11 @@ app.innerHTML = `
             X
           </button>
           <span class="dropzone-title">Add a second model for comparison</span>
+          <span class="dropzone-button" aria-hidden="true">Choose model</span>
           <div class="dropzone-selection hidden" id="compare-dropzone-selection">
             <span class="dropzone-file mono" id="compare-dropzone-file"></span>
           </div>
-          <span class="dropzone-copy">or drag and drop it here</span>
+          <span class="dropzone-copy">Choose another file of the same format.</span>
         </label>
       </div>
       <div class="upload-feedback">
@@ -85,38 +91,61 @@ app.innerHTML = `
       </div>
     </section>
 
-    <section class="intro-copy" aria-label="About AI Model Inspector">
-      <p class="lede">
-        AI Model Inspector is an analyzer for AI models. Drop a <code>.gguf</code> or
-        <code>.onnx</code> file to visualize headers, metadata, graph structure, and tensor or
-        node indexes without uploading anything to a server.
-      </p>
-      <p class="lede">
-        Review the extracted details in your browser, download the full result as JSON, and
-        calculate the model SHA-256 hash on demand when you need a reproducible file fingerprint.
-      </p>
-      <p class="lede">
-        Estimate the RAM needed for inference from the model's weights and key-value cache
-        structure. Choose a context length and number of parallel sequences to explore different
-        workloads; actual memory usage may vary by inference engine, cache precision, and CPU or
-        GPU offloading.
-      </p>
-      <p class="lede">
-        All the functionality is available online. It doesn't need complex prerequisites other than a recent browser.
-        No installation is required, just bookmark the page to have it handy.
-      </p>
-      <p class="lede">
-        This product is centered around privacy.Even though the analyzer is available as a website, no model data leaves your PC.
-        In order to be fully transparent on this matter, the code has been made public and the request made by the site can be verified.
-        If you want to report any issue, feel free to raise <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">
-          one on GitHub.
-        </a>
-      </p>
-      <p class="lede">
-        The AI Model Inspector allows you to compare two models' metadata directly in the browser, without needing to downlaod them as JSONs.
-        You can switch easily between the models comparison mode and single model inspection mode by uploading two files or cancelling one of them. 
-      </p>
-    </section>
+    <div class="results-layout" id="results-layout">
+      <section
+        class="panel results-navigation hidden"
+        id="results-navigation"
+        aria-labelledby="results-navigation-title"
+      >
+        <button
+          class="results-navigation-toggle"
+          id="results-navigation-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="results-navigation-menu"
+          aria-label="Open page navigation"
+        >
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </button>
+        <div class="results-navigation-menu" id="results-navigation-menu">
+        <div class="results-navigation-copy">
+          <h2 id="results-navigation-title">On this page</h2>
+          <p id="results-navigation-summary"></p>
+        </div>
+        <nav
+          class="results-navigation-links"
+          id="results-navigation-links"
+          aria-label="Model result sections"
+        ></nav>
+        </div>
+      </section>
+
+      <div class="results-content">
+        <section class="intro-copy" aria-label="About AI Model Inspector">
+          <div class="feature-grid">
+            <article class="feature-card">
+              <h2>Inspect locally</h2>
+              <p>Explore GGUF metadata, tensors, and ONNX graph details without sending the file to a server.</p>
+            </article>
+            <article class="feature-card">
+              <h2>Plan inference</h2>
+              <p>Estimate RAM for different context lengths, parallel sequences, and GGUF quantizations.</p>
+            </article>
+            <article class="feature-card">
+              <h2>Compare models</h2>
+              <p>Load two files of the same format to find shared, changed, and model-specific data.</p>
+            </article>
+          </div>
+          <p class="intro-note">
+            Download parsed results as JSON or calculate a SHA-256 fingerprint on demand.
+            Everything runs in a recent browser. Found an issue?
+            <a href="https://github.com/mejustandrew/ai-model-inspector/issues" rel="noreferrer" target="_blank">
+              Report it on GitHub.
+            </a>
+          </p>
+        </section>
 
     <section class="panel hidden collapsible-panel" id="summary-panel" data-collapsed="false">
       <div class="panel-head">
@@ -137,7 +166,7 @@ app.innerHTML = `
       <div class="panel-body">
         <div class="summary-grid" id="summary-grid"></div>
       </div>
-    </section>
+        </section>
 
     <section class="panel hidden collapsible-panel" id="resource-panel" data-collapsed="false">
       <div class="panel-head">
@@ -276,6 +305,12 @@ app.innerHTML = `
           <p>Model interface as declared by the graph.</p>
         </div>
         <div class="panel-actions">
+          <input
+            id="graph-io-filter"
+            type="search"
+            placeholder="Filter by key or value"
+            aria-label="Filter graph inputs and outputs"
+          />
           <button
             class="panel-toggle"
             type="button"
@@ -301,7 +336,7 @@ app.innerHTML = `
       </div>
     </section>
 
-    <section class="panel hidden collapsible-panel" id="dependency-trace-panel" data-collapsed="false">
+    <section class="panel hidden collapsible-panel" id="dependency-trace-panel" data-collapsed="true">
       <div class="panel-head">
         <div>
           <h2>Dependency Trace</h2>
@@ -320,8 +355,8 @@ app.innerHTML = `
             class="panel-toggle"
             type="button"
             data-panel-toggle
-            aria-expanded="true"
-            aria-label="Collapse section"
+            aria-expanded="false"
+            aria-label="Expand section"
           ></button>
         </div>
       </div>
@@ -344,6 +379,13 @@ app.innerHTML = `
           <p id="detail-subtitle">First 25 tensor descriptors from the file.</p>
         </div>
         <div class="panel-actions">
+          <input
+            class="hidden"
+            id="detail-filter"
+            type="search"
+            placeholder="Filter by key or value"
+            aria-label="Filter graph nodes"
+          />
           <button
             class="panel-toggle"
             type="button"
@@ -355,7 +397,7 @@ app.innerHTML = `
       </div>
       <div class="panel-body">
         <div class="metadata-table-wrap">
-          <table class="metadata-table">
+          <table class="metadata-table detail-table">
             <thead id="detail-head"></thead>
             <tbody id="detail-body"></tbody>
           </table>
@@ -363,9 +405,11 @@ app.innerHTML = `
       </div>
     </section>
 
-    <p class="app-disclaimer">
-      Work in progress. Results may contain mistakes.
-    </p>
+        <p class="app-disclaimer">
+          Work in progress. Results may contain mistakes.
+        </p>
+      </div>
+    </div>
   </main>
 `;
 
@@ -387,6 +431,12 @@ const dropzoneHash = document.querySelector('#dropzone-hash');
 const dropzoneHashValue = document.querySelector('#dropzone-hash-value');
 const hashCancelButton = document.querySelector('#hash-cancel');
 const status = document.querySelector('#status');
+const uploadPanel = document.querySelector('#upload-panel');
+const resultsLayout = document.querySelector('#results-layout');
+const resultsNavigation = document.querySelector('#results-navigation');
+const resultsNavigationToggle = document.querySelector('#results-navigation-toggle');
+const resultsNavigationSummary = document.querySelector('#results-navigation-summary');
+const resultsNavigationLinks = document.querySelector('#results-navigation-links');
 const summaryPanel = document.querySelector('#summary-panel');
 const summaryGrid = document.querySelector('#summary-grid');
 const resourcePanel = document.querySelector('#resource-panel');
@@ -417,6 +467,7 @@ const metadataBody = document.querySelector('#metadata-body');
 const metadataFilter = document.querySelector('#metadata-filter');
 const graphIoPanel = document.querySelector('#graph-io-panel');
 const graphIoBody = document.querySelector('#graph-io-body');
+const graphIoFilter = document.querySelector('#graph-io-filter');
 const dependencyTracePanel = document.querySelector('#dependency-trace-panel');
 const dependencyTraceSubtitle = document.querySelector('#dependency-trace-subtitle');
 const dependencyTraceStats = document.querySelector('#dependency-trace-stats');
@@ -428,6 +479,7 @@ const traceBackwardButton = document.querySelector('#trace-backward');
 const detailPanel = document.querySelector('#detail-panel');
 const detailTitle = document.querySelector('#detail-title');
 const detailSubtitle = document.querySelector('#detail-subtitle');
+const detailFilter = document.querySelector('#detail-filter');
 const detailHead = document.querySelector('#detail-head');
 const detailBody = document.querySelector('#detail-body');
 const downloadJsonButton = document.querySelector('#download-json');
@@ -440,6 +492,8 @@ let modelSlots = [null, null];
 let uploadPaneSplit = false;
 let activeFileToken = 0;
 let hashWorker = null;
+let resultsNavigationPanels = [];
+let resultsNavigationFrame = 0;
 const COLLAPSIBLE_VALUE_LENGTH = 2000;
 const COLLAPSIBLE_ARRAY_LENGTH = 40;
 const COLLAPSIBLE_COMPARE_VALUE_LENGTH = 120;
@@ -706,6 +760,98 @@ function setPanelCollapsed(panel, collapsed) {
     toggleButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     toggleButton.setAttribute('aria-label', collapsed ? 'Expand section' : 'Collapse section');
   }
+}
+
+function setResultsNavigationOpen(open) {
+  resultsNavigation.dataset.open = open ? 'true' : 'false';
+  resultsNavigationToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  resultsNavigationToggle.setAttribute(
+    'aria-label',
+    open ? 'Close page navigation' : 'Open page navigation'
+  );
+}
+
+function setCurrentResultsNavigationLink(panelId) {
+  resultsNavigationLinks.querySelectorAll('a').forEach((link) => {
+    if (link.dataset.panelId === panelId) {
+      link.setAttribute('aria-current', 'location');
+    } else {
+      link.removeAttribute('aria-current');
+    }
+  });
+}
+
+function syncResultsNavigationCurrent() {
+  resultsNavigationFrame = 0;
+  if (resultsNavigation.classList.contains('hidden') || resultsNavigationPanels.length === 0) {
+    return;
+  }
+
+  let currentPanel = resultsNavigationPanels[0];
+  for (const panel of resultsNavigationPanels) {
+    if (panel.getBoundingClientRect().top <= 160) {
+      currentPanel = panel;
+    } else {
+      break;
+    }
+  }
+
+  setCurrentResultsNavigationLink(currentPanel.id);
+}
+
+function requestResultsNavigationSync() {
+  if (!resultsNavigationFrame) {
+    resultsNavigationFrame = window.requestAnimationFrame(syncResultsNavigationCurrent);
+  }
+}
+
+function renderResultsNavigation(summaryText) {
+  const navigationItems = [
+    { panel: uploadPanel, label: 'Files' },
+    { panel: summaryPanel, label: 'Summary' },
+    {
+      panel: resourcePanel,
+      label: latestResult?.kind === 'gguf' ? 'RAM & quantizations' : 'RAM estimate',
+    },
+    { panel: comparePanel, label: 'Comparison' },
+    { panel: metadataPanel, label: metadataTitle.textContent },
+    { panel: graphIoPanel, label: 'Inputs & outputs' },
+    { panel: dependencyTracePanel, label: 'Dependency trace' },
+    { panel: detailPanel, label: detailTitle.textContent },
+  ].filter(({ panel }) => panel && !panel.classList.contains('hidden'));
+
+  resultsNavigationSummary.textContent = summaryText;
+  resultsNavigationLinks.innerHTML = '';
+  resultsNavigationPanels = navigationItems.map(({ panel }) => panel);
+
+  navigationItems.forEach(({ panel, label }) => {
+    const link = document.createElement('a');
+    link.href = `#${panel.id}`;
+    link.dataset.panelId = panel.id;
+    link.textContent = label;
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      setResultsNavigationOpen(false);
+      setCurrentResultsNavigationLink(panel.id);
+
+      if (panel.classList.contains('collapsible-panel')) {
+        setPanelCollapsed(panel, false);
+      }
+
+      panel.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'auto'
+          : 'smooth',
+        block: 'start',
+      });
+    });
+    resultsNavigationLinks.append(link);
+  });
+
+  resultsNavigation.classList.remove('hidden');
+  resultsLayout.classList.add('has-navigation');
+  setResultsNavigationOpen(false);
+  requestResultsNavigationSync();
 }
 
 function expandAllPanels() {
@@ -1284,9 +1430,20 @@ function renderMetadata(entries) {
 }
 
 function renderGraphIo(items) {
+  const filter = graphIoFilter.value.trim().toLowerCase();
   graphIoBody.innerHTML = '';
 
-  for (const item of items) {
+  const visibleItems = items.filter((item) => {
+    if (!filter) {
+      return true;
+    }
+
+    return [item.direction, item.name, item.typeDescription || 'unknown'].some((value) =>
+      value.toLowerCase().includes(filter)
+    );
+  });
+
+  for (const item of visibleItems) {
     const row = document.createElement('tr');
 
     const directionCell = document.createElement('td');
@@ -1476,6 +1633,42 @@ function renderDependencyTraceGraph(traceData, mode) {
   dependencyTraceCanvas.append(svg);
 }
 
+function appendCollapsibleListCell(row, values, itemLabel, maxTextLength = 500) {
+  const cell = document.createElement('td');
+  const items = values.filter(Boolean);
+
+  if (items.length === 0) {
+    const pre = document.createElement('pre');
+    pre.textContent = '(none)';
+    cell.append(pre);
+    row.append(cell);
+    return;
+  }
+
+  const valueText = items.join('\n');
+  if (items.length > 8 || valueText.length > maxTextLength) {
+    const details = document.createElement('details');
+    details.className = 'value-details trace-value-details';
+
+    const summary = document.createElement('summary');
+    summary.className = 'value-summary';
+    summary.textContent = `Show ${items.length.toLocaleString()} ${itemLabel}`;
+
+    const pre = document.createElement('pre');
+    pre.textContent = valueText;
+
+    details.append(summary, pre);
+    cell.append(details);
+    row.append(cell);
+    return;
+  }
+
+  const pre = document.createElement('pre');
+  pre.textContent = valueText;
+  cell.append(pre);
+  row.append(cell);
+}
+
 function renderDependencyTraceTable(traceData, mode) {
   dependencyTraceHead.innerHTML = '';
   dependencyTraceBody.innerHTML = '';
@@ -1501,25 +1694,14 @@ function renderDependencyTraceTable(traceData, mode) {
     nameCell.className = 'mono';
     nameCell.textContent = summary.name;
 
-    const connectedCell = document.createElement('td');
-    const connectedPre = document.createElement('pre');
-    connectedPre.textContent = summary.connectedStarts.join('\n') || '(none)';
-    connectedCell.append(connectedPre);
-
-    const initializerCell = document.createElement('td');
-    const initializerPre = document.createElement('pre');
-    initializerPre.textContent = summary.initializerNames.join('\n') || '(none)';
-    initializerCell.append(initializerPre);
-
     const nodesCell = document.createElement('td');
     nodesCell.textContent = `${summary.nodeCount.toLocaleString()} nodes, depth ${summary.maxDepth}`;
 
-    const opCell = document.createElement('td');
-    const opPre = document.createElement('pre');
-    opPre.textContent = summary.opTypes.join(', ') || '(none)';
-    opCell.append(opPre);
-
-    row.append(nameCell, connectedCell, initializerCell, nodesCell, opCell);
+    row.append(nameCell);
+    appendCollapsibleListCell(row, summary.connectedStarts, 'connections');
+    appendCollapsibleListCell(row, summary.initializerNames, 'initializers');
+    row.append(nodesCell);
+    appendCollapsibleListCell(row, summary.opTypes, 'operations');
     dependencyTraceBody.append(row);
   }
 }
@@ -1589,12 +1771,27 @@ function setDetailTableHeaders(labels) {
 }
 
 function renderGgufTensors(tensors) {
+  const filter = detailFilter.value.trim().toLowerCase();
   detailBody.innerHTML = '';
   detailTitle.textContent = 'Tensor Index';
   detailSubtitle.textContent = 'First 25 tensor descriptors from the file.';
+  detailFilter.classList.remove('hidden');
+  detailFilter.setAttribute('aria-label', 'Filter tensor index');
   setDetailTableHeaders(['Name', 'Dimensions', 'GGML Type', 'Offset']);
 
-  const preview = tensors.slice(0, 25);
+  const visibleTensors = tensors.filter((tensor) => {
+    if (!filter) {
+      return true;
+    }
+
+    return [
+      tensor.name,
+      tensor.dimensions.join(' x ') || 'scalar',
+      String(tensor.ggmlType),
+      String(tensor.offset),
+    ].some((value) => value.toLowerCase().includes(filter));
+  });
+  const preview = visibleTensors.slice(0, 25);
 
   for (const tensor of preview) {
     const row = document.createElement('tr');
@@ -1621,12 +1818,28 @@ function renderGgufTensors(tensors) {
 }
 
 function renderOnnxNodes(nodes) {
+  const filter = detailFilter.value.trim().toLowerCase();
   detailBody.innerHTML = '';
   detailTitle.textContent = 'Graph Nodes';
   detailSubtitle.textContent = 'First 50 nodes from the ONNX graph.';
+  detailFilter.classList.remove('hidden');
+  detailFilter.setAttribute('aria-label', 'Filter graph nodes');
   setDetailTableHeaders(['Name', 'Op Type', 'Inputs', 'Outputs']);
 
-  const preview = nodes.slice(0, 50);
+  const visibleNodes = nodes.filter((node) => {
+    if (!filter) {
+      return true;
+    }
+
+    const opType = node.domain ? `${node.domain}::${node.opType}` : node.opType;
+    return [
+      node.name || '(unnamed)',
+      opType,
+      node.inputs.join('\n'),
+      node.outputs.join('\n'),
+    ].some((value) => value.toLowerCase().includes(filter));
+  });
+  const preview = visibleNodes.slice(0, 50);
 
   for (const node of preview) {
     const row = document.createElement('tr');
@@ -1638,17 +1851,9 @@ function renderOnnxNodes(nodes) {
     const opTypeCell = document.createElement('td');
     opTypeCell.textContent = node.domain ? `${node.domain}::${node.opType}` : node.opType;
 
-    const inputsCell = document.createElement('td');
-    const inputPre = document.createElement('pre');
-    inputPre.textContent = node.inputs.join('\n') || '(none)';
-    inputsCell.append(inputPre);
-
-    const outputsCell = document.createElement('td');
-    const outputPre = document.createElement('pre');
-    outputPre.textContent = node.outputs.join('\n') || '(none)';
-    outputsCell.append(outputPre);
-
-    row.append(nameCell, opTypeCell, inputsCell, outputsCell);
+    row.append(nameCell, opTypeCell);
+    appendCollapsibleListCell(row, node.inputs, 'inputs', 240);
+    appendCollapsibleListCell(row, node.outputs, 'outputs', 240);
     detailBody.append(row);
   }
 
@@ -1838,10 +2043,16 @@ function renderComparison(leftResult, leftFile, rightResult, rightFile) {
   }
 
   comparePanel.classList.remove('hidden');
+  renderResultsNavigation(`${leftFile.name} compared with ${rightFile.name}.`);
 }
 
 function resetPanels() {
   expandAllPanels();
+  setPanelCollapsed(dependencyTracePanel, true);
+  setResultsNavigationOpen(false);
+  resultsNavigation.classList.add('hidden');
+  resultsLayout.classList.remove('has-navigation');
+  resultsNavigationPanels = [];
   summaryPanel.classList.add('hidden');
   resourcePanel.classList.add('hidden');
   comparePanel.classList.add('hidden');
@@ -1865,12 +2076,14 @@ function renderResult(result, file) {
   if (result.kind === 'gguf') {
     graphIoPanel.classList.add('hidden');
     renderGgufTensors(result.tensors);
+    renderResultsNavigation(`${file.name} model report.`);
     return;
   }
 
   renderGraphIo(result.graph.interface);
   renderDependencyTrace(result.graph.dependencyTrace);
   renderOnnxNodes(result.graph.nodes);
+  renderResultsNavigation(`${file.name} model report.`);
 }
 
 async function parseModelFile(file) {
@@ -2197,6 +2410,20 @@ metadataFilter.addEventListener('input', () => {
   }
 });
 
+graphIoFilter.addEventListener('input', () => {
+  if (latestResult?.kind === 'onnx') {
+    renderGraphIo(latestResult.graph.interface);
+  }
+});
+
+detailFilter.addEventListener('input', () => {
+  if (latestResult?.kind === 'gguf') {
+    renderGgufTensors(latestResult.tensors);
+  } else if (latestResult?.kind === 'onnx') {
+    renderOnnxNodes(latestResult.graph.nodes);
+  }
+});
+
 [resourceContextInput, resourceBatchInput].forEach((input) => {
   input.addEventListener('change', () => {
     if (latestResult) {
@@ -2309,6 +2536,30 @@ collapsiblePanels.forEach((panel) => {
     setPanelCollapsed(panel, !collapsed);
   });
 });
+
+resultsNavigationToggle.addEventListener('click', (event) => {
+  event.stopPropagation();
+  setResultsNavigationOpen(resultsNavigation.dataset.open !== 'true');
+});
+
+document.addEventListener('click', (event) => {
+  if (
+    resultsNavigation.dataset.open === 'true' &&
+    !resultsNavigation.contains(event.target)
+  ) {
+    setResultsNavigationOpen(false);
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && resultsNavigation.dataset.open === 'true') {
+    setResultsNavigationOpen(false);
+    resultsNavigationToggle.focus();
+  }
+});
+
+window.addEventListener('scroll', requestResultsNavigationSync, { passive: true });
+window.addEventListener('resize', requestResultsNavigationSync);
 
 const graphBackgroundController = setupDynamicGraphBackground(graphBackground);
 setupThemeToggle(themeToggle);
