@@ -7,9 +7,13 @@ import {
   getGgufQuantizationRequirements,
   getInferenceContextOptions,
 } from './resourceEstimator.js';
+import { initHuggingFaceDownloader } from './huggingfaceDownloader.js';
 
 const app = document.querySelector('#app');
 
+if (window.location.pathname.replace(/\/+$/, '') === '/huggingface-downloader') {
+  initHuggingFaceDownloader(app);
+} else {
 app.innerHTML = `
   <canvas class="graph-background" id="graph-background" aria-hidden="true"></canvas>
   <div class="app-controls">
@@ -47,6 +51,8 @@ app.innerHTML = `
         <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">
           public on GitHub
         </a>.
+        Need repo files?
+        <a href="/huggingface-downloader">Open the Hugging Face downloader</a>.
       </p>
     </section>
 
@@ -2574,4 +2580,5 @@ if (motionToggle && graphBackgroundController) {
     );
     motionToggle.title = frozen ? 'Resume background motion' : 'Freeze background motion';
   });
+}
 }

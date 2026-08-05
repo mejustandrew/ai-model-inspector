@@ -4,6 +4,20 @@ export default {
   base: './',
   plugins: [
     {
+      name: 'huggingface-downloader-history-fallback',
+      configureServer(server) {
+        server.middlewares.use((request, _response, next) => {
+          const pathname = request.url?.split('?')[0];
+
+          if (pathname === '/huggingface-downloader') {
+            request.url = '/index.html';
+          }
+
+          next();
+        });
+      },
+    },
+    {
       name: 'minify-html',
       apply: 'build',
       async transformIndexHtml(html) {

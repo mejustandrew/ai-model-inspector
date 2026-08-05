@@ -13,6 +13,7 @@ Just access the site, upload the model and you are good to go. It does not requi
 - Inspect `.onnx` model properties, graph inputs and outputs, nodes, and metadata.
 - Estimate inference RAM from model weights, KV-cache structure, context length, and parallel sequences.
 - Project file size and total RAM requirements for common alternative GGUF quantizations.
+- Download selected files and folders from public Hugging Face model repositories at `/huggingface-downloader`.
 - Search extracted metadata.
 - Copy individual metadata values.
 - Download the parsed result as JSON.
