@@ -145,6 +145,12 @@ app.innerHTML = `
               Report it on GitHub.
             </a>
           </p>
+          <p class="intro-note support-note">
+            Before the AI takes over the world,
+            <a href="https://buymeacoffee.com/mejustandrew" rel="noreferrer" target="_blank">
+              stop and buy me a coffee.
+            </a>
+          </p>
         </section>
 
     <section class="panel hidden collapsible-panel" id="summary-panel" data-collapsed="false">

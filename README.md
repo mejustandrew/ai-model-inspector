@@ -65,3 +65,5 @@ running on windows may need
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
+
+Before the AI takes over the world, [you can buy me a coffee.](https://buymeacoffee.com/mejustandrew)

@@ -273,6 +273,10 @@ body {
   line-height: 1.55;
 }
 
+.support-note {
+  margin-top: 0.55rem;
+}
+
 .panel {
   margin-top: 1.5rem;
   background: var(--panel);
