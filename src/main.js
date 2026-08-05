@@ -48,6 +48,12 @@ app.innerHTML = `
           public on GitHub
         </a>.
       </p>
+      <p class="source-link support-note">
+        Before the AI takes over the world,
+        <a href="https://buymeacoffee.com/mejustandrew" rel="noreferrer" target="_blank">
+          stop and buy me a coffee.
+        </a>
+      </p>
     </section>
 
 
@@ -143,12 +149,6 @@ app.innerHTML = `
             Everything runs in a recent browser. Found an issue?
             <a href="https://github.com/mejustandrew/ai-model-inspector/issues" rel="noreferrer" target="_blank">
               Report it on GitHub.
-            </a>
-          </p>
-          <p class="intro-note support-note">
-            Before the AI takes over the world,
-            <a href="https://buymeacoffee.com/mejustandrew" rel="noreferrer" target="_blank">
-              stop and buy me a coffee.
             </a>
           </p>
         </section>
