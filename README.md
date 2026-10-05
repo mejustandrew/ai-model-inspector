@@ -20,7 +20,9 @@ Just access the site, upload the model and you are good to go. It does not requi
 
 ## Privacy
 
-Files are processed locally by the browser. The app does not upload model files to a server, call an API, or require an account.
+Files are processed locally by the browser. The model parser does not upload model files to a server or call a model-inspection API, and the app does not require an account.
+
+The hosted page loads Google AdSense, so ordinary page and advertising requests are separate from local model-file processing. See the site's privacy page for details.
 
 Because parsing happens on-device, very large or malformed files may be slow or may exhaust browser memory.
 

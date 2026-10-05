@@ -12,6 +12,15 @@ const app = document.querySelector('#app');
 
 app.innerHTML = `
   <canvas class="graph-background" id="graph-background" aria-hidden="true"></canvas>
+  <header class="site-header">
+    <a class="site-brand" href="/" aria-label="AI Model Inspector home">AI Model Inspector</a>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a href="/">Inspect</a>
+      <a href="/docs">Docs</a>
+      <a href="/about">About</a>
+      <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">GitHub</a>
+    </nav>
+  </header>
   <div class="app-controls">
     <button
       class="theme-toggle"
@@ -151,6 +160,32 @@ app.innerHTML = `
               Report it on GitHub.
             </a>
           </p>
+        </section>
+
+        <section class="home-reference" aria-labelledby="understand-results-title">
+          <div class="home-copy-grid">
+            <article>
+              <h2>What can AI Model Inspector inspect?</h2>
+              <p>For GGUF files, the inspector reads the header, typed metadata, and tensor descriptors. For ONNX files, it reads model properties, graph inputs and outputs, nodes, initializers, and tensor relationships.</p>
+            </article>
+            <article>
+              <h2>Estimate memory before running a model</h2>
+              <p>The estimator separates model weights, KV-cache memory, and a runtime allowance. Change context length and parallel sequences to see how the estimate responds.</p>
+            </article>
+            <article>
+              <h2>Your model stays on your device</h2>
+              <p>Parsing and optional SHA-256 hashing happen in your browser. The model file is not sent to an AI Model Inspector server. Ordinary page requests and advertising are separate; see the <a href="/privacy">privacy policy</a>.</p>
+            </article>
+          </div>
+          <h2 id="understand-results-title">Understand the results</h2>
+          <div class="docs-link-grid">
+            <a href="/docs/gguf"><strong>GGUF files</strong><span>Headers, metadata, and tensor descriptors</span></a>
+            <a href="/docs/gguf-metadata"><strong>GGUF metadata</strong><span>Architecture and tokenizer fields</span></a>
+            <a href="/docs/gguf-quantization"><strong>Quantization</strong><span>Size projections and tradeoffs</span></a>
+            <a href="/docs/inference-memory"><strong>Inference memory</strong><span>Formulas, assumptions, and limits</span></a>
+            <a href="/docs/onnx"><strong>ONNX files</strong><span>Model and graph information</span></a>
+            <a href="/docs/compare-models"><strong>Compare models</strong><span>What the side-by-side report checks</span></a>
+          </div>
         </section>
 
     <section class="panel hidden collapsible-panel" id="summary-panel" data-collapsed="false">
@@ -417,6 +452,16 @@ app.innerHTML = `
       </div>
     </div>
   </main>
+  <footer class="site-footer">
+    <nav aria-label="Footer navigation">
+      <a href="/docs">Documentation</a>
+      <a href="/docs/inference-memory">Memory estimates</a>
+      <a href="/about">About</a>
+      <a href="/privacy">Privacy</a>
+      <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">GitHub</a>
+    </nav>
+    <p>AI Model Inspector is an open-source browser tool.</p>
+  </footer>
 `;
 
 const graphBackground = document.querySelector('#graph-background');

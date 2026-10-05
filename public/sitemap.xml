@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://ai-model-inspector.com/</loc></url>
+  <url><loc>https://ai-model-inspector.com/docs</loc></url>
+  <url><loc>https://ai-model-inspector.com/docs/gguf</loc></url>
+  <url><loc>https://ai-model-inspector.com/docs/gguf-metadata</loc></url>
+  <url><loc>https://ai-model-inspector.com/docs/gguf-quantization</loc></url>
+  <url><loc>https://ai-model-inspector.com/docs/onnx</loc></url>
+  <url><loc>https://ai-model-inspector.com/docs/onnx-graphs</loc></url>
+  <url><loc>https://ai-model-inspector.com/docs/inference-memory</loc></url>
+  <url><loc>https://ai-model-inspector.com/docs/compare-models</loc></url>
+  <url><loc>https://ai-model-inspector.com/about</loc></url>
+  <url><loc>https://ai-model-inspector.com/privacy</loc></url>
+</urlset>

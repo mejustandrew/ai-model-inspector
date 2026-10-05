@@ -1,0 +1,67 @@
+:root {
+  color-scheme: dark;
+  --bg: #081321;
+  --bg-top: #10233a;
+  --panel: rgba(11, 27, 46, 0.9);
+  --border: rgba(110, 163, 255, 0.18);
+  --ink: #d3dceb;
+  --muted: #93a4bc;
+  --accent: #7ab0ff;
+  --code: #07111e;
+  --sans: "Space Grotesk", "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  margin: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  color: var(--ink);
+  background: radial-gradient(circle at top left, rgba(74,129,255,.22), transparent 26%), linear-gradient(180deg, var(--bg-top), var(--bg) 32rem);
+  font-family: var(--sans);
+  line-height: 1.65;
+}
+a { color: var(--accent); text-underline-offset: .18em; }
+a:hover, a:focus-visible { color: #d7e8ff; }
+.site-header, .site-footer, .page { width: min(1080px, calc(100% - 2rem)); margin: 0 auto; }
+.site-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.1rem 0; }
+.brand { color: var(--ink); font-weight: 750; text-decoration: none; }
+.site-nav, .site-footer nav { display: flex; flex-wrap: wrap; gap: .65rem 1.1rem; }
+.site-nav a, .site-footer a { color: var(--muted); text-decoration: none; }
+.site-nav a[aria-current="page"], .site-nav a:hover, .site-footer a:hover { color: var(--accent); }
+.page { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 2rem; padding: 3.5rem 0 5rem; }
+.article { min-width: 0; padding: clamp(1.25rem, 4vw, 2.75rem); border: 1px solid var(--border); border-radius: 24px; background: var(--panel); }
+.eyebrow { margin: 0 0 .5rem; color: var(--accent); font-size: .77rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+h1 { margin: 0; font-size: clamp(2.1rem, 6vw, 3.6rem); line-height: 1.05; overflow-wrap: anywhere; }
+h2 { margin: 2.4rem 0 .6rem; font-size: 1.45rem; line-height: 1.25; }
+h3 { margin: 1.5rem 0 .4rem; line-height: 1.3; }
+p, li { max-width: 72ch; }
+.lede { margin: 1.1rem 0 0; color: var(--muted); font-size: 1.1rem; }
+.article-nav { position: sticky; top: 1rem; min-width: 0; align-self: start; padding: 1rem; border: 1px solid var(--border); border-radius: 18px; background: rgba(11,27,46,.82); }
+.article-nav strong { display: block; margin-bottom: .5rem; }
+.article-nav a { display: block; padding: .28rem 0; color: var(--muted); font-size: .92rem; text-decoration: none; }
+.article-nav a:hover { color: var(--accent); }
+.card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: .85rem; margin-top: 1rem; }
+.card { display: block; padding: 1rem; border: 1px solid var(--border); border-radius: 14px; color: var(--ink); text-decoration: none; }
+.card span { display: block; margin-top: .25rem; color: var(--muted); font-size: .92rem; }
+.note { padding: .9rem 1rem; border-left: 3px solid var(--accent); background: rgba(122,176,255,.08); }
+code { padding: .1em .3em; border-radius: 5px; background: var(--code); color: #c9ddff; font-family: var(--mono); font-size: .92em; }
+.formula { overflow-x: auto; padding: .9rem 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--code); font-family: var(--mono); }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .94rem; }
+th, td { padding: .65rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { color: var(--accent); }
+.breadcrumbs { margin: 0 0 1.2rem; color: var(--muted); font-size: .9rem; }
+.site-footer { padding: 1.5rem 0 3rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
+.site-footer p { margin: .8rem 0 0; }
+@media (max-width: 800px) {
+  .page { grid-template-columns: 1fr; padding-top: 2rem; }
+  .article-nav { position: static; order: -1; }
+}
+@media (max-width: 560px) {
+  .site-header { align-items: flex-start; flex-direction: column; gap: .45rem; }
+  .site-nav { justify-content: flex-start; }
+  .card-grid { grid-template-columns: 1fr; }
+  .article { border-radius: 18px; }
+  table { display: block; overflow-x: auto; }
+}
