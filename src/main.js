@@ -434,7 +434,7 @@ app.innerHTML = `
       <a href="/privacy">Privacy</a>
       <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">GitHub</a>
     </nav>
-    <p>AI Model Inspector is an open-source browser tool.</p>
+    <p>AI Model Inspector is an open-source browser tool. Part of the <a href="https://pragmaones.com/">Pragmaones suite</a>.</p>
   </footer>
 `;
 
