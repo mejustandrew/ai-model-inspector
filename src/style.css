@@ -121,9 +121,9 @@ body {
   position: relative;
   z-index: 4;
   display: flex;
-  width: min(1280px, calc(100% - 2rem));
+  width: min(900px, calc(100% - 2rem));
   margin: 0 auto;
-  padding: 1.1rem 7rem 0 0;
+  padding: 1.1rem 0 0;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -136,11 +136,23 @@ body {
   text-decoration: none;
 }
 
-.site-brand { font-weight: 750; }
+.site-brand {
+  font-size: 0.96rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
 .site-nav { display: flex; gap: 1rem; }
+.site-nav a {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid transparent;
+}
 .site-nav a, .site-footer a { color: var(--muted); }
 .site-nav a:hover, .site-nav a:focus-visible,
 .site-footer a:hover, .site-footer a:focus-visible { color: var(--accent-strong); }
+.site-nav a[aria-current='page'] {
+  border-bottom-color: var(--accent);
+  color: var(--ink);
+}
 
 .theme-toggle,
 .motion-toggle {
@@ -346,8 +358,9 @@ body {
 .site-footer nav { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; }
 .site-footer p { margin: 0.9rem 0 0; }
 
-.support-note {
-  margin-top: 0.55rem;
+.home-support {
+  width: min(900px, 100%);
+  margin: 1.25rem auto 0;
 }
 
 .panel {
@@ -1318,7 +1331,7 @@ button:hover {
 
   .shell {
     width: min(100% - 1rem, 1120px);
-    padding-top: 3.5rem;
+    padding-top: 1.5rem;
   }
 
   .hero {
@@ -1385,3 +1398,6 @@ button:hover {
     max-height: 32rem;
   }
 }
+
+/* Keep future placement space below the tool interface. */
+.placement-reserve { min-height: 4rem; }

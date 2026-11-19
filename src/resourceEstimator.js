@@ -17,7 +17,7 @@ const CONTEXT_PRESETS = [
   1048576,
 ];
 const FALLBACK_CONTEXT_MAX = 32768;
-const GGUF_QUANTIZATION_PROFILES = [
+export const GGUF_QUANTIZATION_PROFILES = [
   {
     name: 'Q2_K',
     minBitsPerWeight: 2.8,
@@ -289,6 +289,56 @@ function calculateRuntimeOverhead(weightsBytes) {
     MINIMUM_RUNTIME_OVERHEAD_BYTES,
     weightsBytes * DEFAULT_RUNTIME_OVERHEAD_RATIO
   );
+}
+
+// Dense, full-attention decoder planning model. All architecture inputs are
+// explicit: parameter count alone cannot determine KV-cache dimensions.
+export function estimateManualLlmResources(settings) {
+  const positive = (name, integer = false) => {
+    const value = Number(settings[name]);
+    if (!Number.isFinite(value) || value <= 0 ||
+        (integer && !Number.isSafeInteger(value))) {
+      throw new RangeError(`${name} must be a positive ${integer ? 'safe integer' : 'number'}.`);
+    }
+    return value;
+  };
+  const parameters = positive('parameterCount', true);
+  const context = positive('contextLength', true);
+  const sequences = positive('parallelSequences', true);
+  const layers = positive('layerCount', true);
+  const heads = positive('kvHeadCount', true);
+  const key = positive('keyLength', true);
+  const value = positive('valueLength', true);
+  const cacheBytes = positive('kvElementBytes');
+  if (![2, 4].includes(cacheBytes)) {
+    throw new RangeError('KV precision must be 16 or 32 bits.');
+  }
+  const profile = GGUF_QUANTIZATION_PROFILES.find(p => p.name === settings.quantization);
+  let minBits, maxBits;
+  if (profile) {
+    minBits = profile.minBitsPerWeight;
+    maxBits = profile.maxBitsPerWeight;
+  } else if (settings.quantization === 'custom') {
+    minBits = maxBits = positive('bitsPerWeight');
+  } else {
+    throw new RangeError('Choose a supported quantization or custom effective bits per weight.');
+  }
+  const kvCacheBytes = layers * heads * (key + value) * cacheBytes * context * sequences;
+  const scenario = bits => {
+    const weightsBytes = parameters * bits / 8;
+    const runtimeOverheadBytes = calculateRuntimeOverhead(weightsBytes);
+    return { weightsBytes, runtimeOverheadBytes,
+      estimatedTotalBytes: weightsBytes + kvCacheBytes + runtimeOverheadBytes };
+  };
+  const minimum = scenario(minBits);
+  const maximum = scenario(maxBits);
+  if (![kvCacheBytes, maximum.estimatedTotalBytes].every(Number.isSafeInteger)) {
+    // Fractional bytes are harmless; overflow or loss of integer precision is not.
+    if (![kvCacheBytes, maximum.estimatedTotalBytes].every(n => Number.isFinite(n) && n <= Number.MAX_SAFE_INTEGER)) {
+      throw new RangeError('Inputs exceed the supported memory calculation range.');
+    }
+  }
+  return { minimum, maximum, kvCacheBytes, minBitsPerWeight: minBits, maxBitsPerWeight: maxBits };
 }
 
 function calculateProjectedTotal(weightsBytes, kvCacheBytes) {

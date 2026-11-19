@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Model Inspector | Inspect GGUF and ONNX Locally</title>
+    <title>AI Model Inspector | GGUF &amp; ONNX Model Viewer + RAM Estimator</title>
     <meta
       name="description"
-      content="Inspect GGUF and ONNX metadata, tensors, graphs, model differences, and estimated inference memory locally in your browser."
+      content="Inspect GGUF and ONNX models locally in your browser. View metadata, compare models, and estimate memory requirements. Free, private, no upload."
     />
     <meta name="robots" content="index,follow" />
     <meta name="google-adsense-account" content="ca-pub-8908115236132872" />
@@ -14,26 +14,24 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <meta
       property="og:title"
-      content="AI Model Inspector | Local GGUF & ONNX Analysis"
+      content="AI Model Inspector | GGUF &amp; ONNX Model Viewer + RAM Estimator"
     />
     <meta
       property="og:description"
-      content="Analyze AI model metadata locally in the browser with private GGUF and ONNX inspection. No upload required."
+      content="Inspect GGUF and ONNX models locally in your browser. View metadata, compare models, and estimate memory requirements. Free, private, no upload."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://ai-model-inspector.com/" />
     <meta
       name="twitter:title"
-      content="Private AI Model Inspector | Local GGUF & ONNX Analysis"
+      content="AI Model Inspector | GGUF &amp; ONNX Model Viewer + RAM Estimator"
     />
     <meta
       name="twitter:description"
-      content="Local, browser-based inspection for GGUF and ONNX files with private model metadata and graph analysis."
+      content="Inspect GGUF and ONNX models locally in your browser. View metadata, compare models, and estimate memory requirements. Free, private, no upload."
     />
     <meta name="twitter:card" content="summary" />
-    <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"SoftwareApplication","name":"AI Model Inspector","url":"https://ai-model-inspector.com/","applicationCategory":"DeveloperApplication","operatingSystem":"Any modern web browser","isAccessibleForFree":true,"description":"A browser tool for inspecting GGUF and ONNX model files locally.","codeRepository":"https://github.com/mejustandrew/ai-model-inspector"}
-    </script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","@id":"https://ai-model-inspector.com/#application","name":"AI Model Inspector","url":"https://ai-model-inspector.com/","applicationCategory":"DeveloperApplication","operatingSystem":"Any modern web browser","browserRequirements":"JavaScript enabled","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":"Inspect GGUF and ONNX models locally in your browser. View metadata, compare models, and estimate memory requirements. Free, private, no upload.","codeRepository":"https://github.com/mejustandrew/ai-model-inspector","featureList":["Local GGUF and ONNX inspection","Model comparison","LLM memory estimation without a file"]}</script>
     <script type="module" src="/src/main.js"></script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8908115236132872"
      crossorigin="anonymous"></script>
@@ -43,15 +41,15 @@
       <header class="site-header">
         <a class="site-brand" href="/">AI Model Inspector</a>
         <nav class="site-nav" aria-label="Primary navigation">
-          <a href="/">Inspect</a><a href="/docs">Docs</a><a href="/about">About</a>
+          <a href="/" aria-current="page">Inspect</a><a href="/docs">Docs</a><a href="/about">About</a>
           <a href="https://github.com/mejustandrew/ai-model-inspector">GitHub</a>
         </nav>
       </header>
       <main class="shell">
         <section class="hero">
           <p class="eyebrow">Local GGUF &amp; ONNX analysis</p>
-          <h1>Private AI model inspection directly in your browser.</h1>
-          <p class="hero-summary">
+          <h1>Inspect GGUF &amp; ONNX models in your browser.</h1>
+          <div id="hero-description"><p class="hero-summary">
             Inspect metadata, explore model structure, compare files, and estimate inference RAM.
             Your model stays on your device.
           </p>
@@ -60,13 +58,7 @@
             <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">
               public on GitHub
             </a>.
-          </p>
-          <p class="source-link support-note">
-            Before the AI takes over the world,
-            <a href="https://buymeacoffee.com/mejustandrew" rel="noreferrer" target="_blank">
-              stop and buy me a coffee.
-            </a>
-          </p>
+          </p></div>
         </section>
 
         <section class="intro-copy" aria-label="About AI Model Inspector">
@@ -92,25 +84,11 @@
             </a>
           </p>
         </section>
-        <section class="home-reference" aria-labelledby="understand-results-title">
-          <div class="home-copy-grid">
-            <article><h2>What can AI Model Inspector inspect?</h2><p>For GGUF files, the inspector reads the header, typed metadata, and tensor descriptors. For ONNX files, it reads model properties, graph inputs and outputs, nodes, initializers, and tensor relationships.</p></article>
-            <article><h2>Estimate memory before running a model</h2><p>The estimator separates model weights, KV-cache memory, and a runtime allowance. Change context length and parallel sequences to see how the estimate responds.</p></article>
-            <article><h2>Your model stays on your device</h2><p>Parsing and optional SHA-256 hashing happen in your browser. The model file is not sent to an AI Model Inspector server. Ordinary page requests and advertising are separate; see the <a href="/privacy">privacy policy</a>.</p></article>
-          </div>
-          <h2 id="understand-results-title">Understand the results</h2>
-          <div class="docs-link-grid">
-            <a href="/docs/gguf"><strong>GGUF files</strong><span>Headers, metadata, and tensor descriptors</span></a>
-            <a href="/docs/gguf-metadata"><strong>GGUF metadata</strong><span>Architecture and tokenizer fields</span></a>
-            <a href="/docs/gguf-quantization"><strong>Quantization</strong><span>Size projections and tradeoffs</span></a>
-            <a href="/docs/inference-memory"><strong>Inference memory</strong><span>Formulas, assumptions, and limits</span></a>
-            <a href="/docs/onnx"><strong>ONNX files</strong><span>Model and graph information</span></a>
-            <a href="/docs/compare-models"><strong>Compare models</strong><span>What the side-by-side report checks</span></a>
-          </div>
-        </section>
+        <nav class="home-reference" aria-label="Tools and guides"><p class="source-link"><a href="/gguf-viewer">GGUF viewer</a> · <a href="/onnx-viewer">ONNX viewer</a> · <a href="/llm-memory-estimator">Memory Estimator</a> · <a href="/docs">Documentation</a></p></nav>
       </main>
-      <footer class="site-footer">
-        <nav aria-label="Footer navigation"><a href="/docs">Documentation</a><a href="/docs/inference-memory">Memory estimates</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="https://github.com/mejustandrew/ai-model-inspector">GitHub</a></nav>
+      <div class="placement-reserve" aria-hidden="true"><!-- Reserved for a future placement. --></div>
+<footer class="site-footer">
+        <nav aria-label="Footer navigation"><a href="/docs">Documentation</a><a href="/llm-memory-estimator">RAM estimator</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="https://github.com/mejustandrew/ai-model-inspector">GitHub</a></nav>
         <p>AI Model Inspector is an open-source browser tool.</p>
       </footer>
     </div>

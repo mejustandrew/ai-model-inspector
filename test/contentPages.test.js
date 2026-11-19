@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pages = [
   ['/', 'index.html'],
+  ['/gguf-viewer', 'public/gguf-viewer.html'],
+  ['/onnx-viewer', 'public/onnx-viewer.html'],
+  ['/llm-memory-estimator', 'llm-memory-estimator.html'],
   ['/docs', 'public/docs/index.html'],
   ['/docs/gguf', 'public/docs/gguf.html'],
   ['/docs/gguf-metadata', 'public/docs/gguf-metadata.html'],
@@ -35,6 +38,8 @@ test('every public page has unique crawlable metadata and one h1', async () => {
 
     assert.ok(title, `${route} needs a title`);
     assert.ok(canonical, `${route} needs a canonical URL`);
+    assert.equal(canonical, `https://ai-model-inspector.com${route}`);
+    assert.doesNotMatch(html, /noindex|nofollow/i);
     assert.match(html, /<meta\s+name="description"\s+content="[^"]+"/i, `${route} needs a description`);
     assert.match(html, /<meta\s+property="og:title"\s+content="[^"]+"/i, `${route} needs Open Graph data`);
     assert.equal(count(html, /<h1(?:\s[^>]*)?>/gi), 1, `${route} must have one h1`);
@@ -55,6 +60,7 @@ test('internal links on static pages resolve to public routes', async () => {
       const target = href.split('#')[0].split('?')[0];
       if (!target || target === '/' || target === '/icon.svg' || target === '/content.css') continue;
       const candidates = [
+        path.join(root, `${target.slice(1)}.html`),
         path.join(root, 'public', `${target.slice(1)}.html`),
         path.join(root, 'public', target.slice(1), 'index.html'),
       ];
@@ -83,4 +89,74 @@ test('AdSense publisher identity is exposed consistently', async () => {
   const ads = await readFile(path.join(root, 'public/ads.txt'), 'utf8');
   assert.match(homepage, /google-adsense-account" content="ca-pub-8908115236132872"/);
   assert.equal(ads.trim(), 'google.com, pub-8908115236132872, DIRECT, f08c47fec0942fa0');
+});
+
+
+test('homepage SEO matches requested copy with consistent social metadata', async () => {
+  const html = await readFile(path.join(root, 'index.html'), 'utf8');
+  const title = 'AI Model Inspector | GGUF &amp; ONNX Model Viewer + RAM Estimator';
+  const description = 'Inspect GGUF and ONNX models locally in your browser. View metadata, compare models, and estimate memory requirements. Free, private, no upload.';
+  assert.ok(html.includes('<title>' + title + '</title>'));
+  assert.ok(html.includes('content="' + description + '"'));
+  assert.ok(html.includes('content="' + title + '"'));
+  assert.equal(html.includes('home-copy-grid'), false);
+});
+
+test('software schema represents free tools without invented reviews', async () => {
+  for (const filename of ['index.html', 'public/gguf-viewer.html', 'public/onnx-viewer.html', 'llm-memory-estimator.html']) {
+    const html = await readFile(path.join(root, filename), 'utf8');
+    const start = html.indexOf('<script type="application/ld+json">') + '<script type="application/ld+json">'.length;
+    const schema = JSON.parse(html.slice(start, html.indexOf('</script>', start)));
+    assert.equal(schema['@type'], 'SoftwareApplication');
+    assert.equal(schema.offers.price, '0');
+    assert.equal(schema.isAccessibleForFree, true);
+    assert.ok(schema.applicationCategory && schema.operatingSystem);
+    assert.ok(html.includes('rel="canonical" href="' + schema.url + '"'));
+    assert.equal(schema.aggregateRating, undefined);
+    assert.equal(schema.review, undefined);
+  }
+});
+
+test('robots permits crawling and landing content is readable without scripts', async () => {
+  const robots = await readFile(path.join(root, 'public/robots.txt'), 'utf8');
+  assert.ok(robots.includes('User-agent: *'));
+  assert.ok(robots.includes('Allow: /'));
+  assert.equal(robots.includes('Disallow:'), false);
+  assert.ok(robots.includes('Sitemap: https://ai-model-inspector.com/sitemap.xml'));
+  for (const filename of ['public/gguf-viewer.html', 'public/onnx-viewer.html', 'llm-memory-estimator.html']) {
+    const html = await readFile(path.join(root, filename), 'utf8');
+    assert.ok(html.includes('<h1>'));
+    assert.ok(html.includes('href="/#upload-panel"'));
+    assert.ok(html.includes('href="/docs'));
+  }
+  const estimator = await readFile(path.join(root, 'llm-memory-estimator.html'), 'utf8');
+  assert.equal(estimator.includes('type="file"'), false);
+  assert.ok(estimator.includes('KV bytes ='));
+  const hosting = JSON.parse(await readFile(path.join(root, 'firebase.json'), 'utf8')).hosting;
+  assert.equal(hosting.cleanUrls, true);
+  assert.equal(hosting.trailingSlash, false);
+});
+
+test('development and preview clean URLs resolve to each page instead of the homepage', async () => {
+  const { default: config } = await import('../vite.config.js');
+  const plugin = config.plugins.find(item => item.name === 'clean-page-urls');
+  for (const hook of ['configureServer', 'configurePreviewServer']) {
+    let middleware;
+    plugin[hook]({ middlewares: { use(handler) { middleware = handler; } } });
+    for (const [route, filename] of pages) {
+      for (const suffix of ['', '?check=1', '/']) {
+        const request = { url: route + (route === '/' && suffix === '/' ? '' : suffix) };
+        let continued = false;
+        middleware(request, {}, () => { continued = true; });
+        const target = filename.replace(/^public\//, '');
+        assert.equal(request.url, route === '/' ? '/' + (suffix === '?check=1' ? suffix : '') : `/${target}${suffix === '?check=1' ? suffix : ''}`);
+        assert.ok(continued);
+      }
+    }
+    for (const route of ['/src/main.js', '/content.css', '/missing-page', '/robots.txt']) {
+      const request = { url: route };
+      middleware(request, {}, () => {});
+      assert.equal(request.url, route);
+    }
+  }
 });

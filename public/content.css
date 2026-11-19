@@ -54,6 +54,17 @@ th { color: var(--accent); }
 .breadcrumbs { margin: 0 0 1.2rem; color: var(--muted); font-size: .9rem; }
 .site-footer { padding: 1.5rem 0 3rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
 .site-footer p { margin: .8rem 0 0; }
+.estimator-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem; }
+#memory-form fieldset { min-width: 0; margin: 1.5rem 0; padding: 1rem; border: 1px solid var(--border); border-radius: 14px; }
+#memory-form legend { color: var(--accent); padding: 0 .4rem; }
+#memory-form label { display: flex; flex-direction: column; gap: .35rem; }
+#memory-form label span { font-size: .85rem; color: var(--muted); }
+#memory-form input, #memory-form select, #memory-form button { width: 100%; padding: .7rem; border: 1px solid var(--border); border-radius: 8px; background: var(--code); color: var(--ink); font: inherit; }
+#memory-form button { width: auto; cursor: pointer; background: var(--accent); color: var(--bg); font-weight: 700; }
+#memory-form :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.estimator-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; }
+.estimator-upload { flex: 1 1 230px; }
+.estimator-upload span { display: block; margin-top: .25rem; color: var(--muted); font-size: .85rem; }
 @media (max-width: 800px) {
   .page { grid-template-columns: 1fr; padding-top: 2rem; }
   .article-nav { position: static; order: -1; }

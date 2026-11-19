@@ -182,3 +182,50 @@ test('updates projected totals with context length and parallel sequences', () =
   assert.equal(twoSequences.kvCacheBytes, 6400);
   assert.equal(q2Double.minimumTotalBytes - q2Single.minimumTotalBytes, 3200);
 });
+
+
+test('manual estimator calculates weights, GQA cache and runtime totals', async () => {
+  const { estimateManualLlmResources } = await import('../src/resourceEstimator.js');
+  const inputs = { parameterCount: 8e9, quantization: 'custom', bitsPerWeight: 4.5,
+    layerCount: 32, kvHeadCount: 8, keyLength: 128, valueLength: 128,
+    contextLength: 4096, parallelSequences: 1, kvElementBytes: 2 };
+  const result = estimateManualLlmResources(inputs);
+  assert.equal(result.minimum.weightsBytes, 4_500_000_000);
+  assert.equal(result.kvCacheBytes, 536_870_912);
+  assert.equal(result.minimum.runtimeOverheadBytes, 450_000_000);
+  assert.equal(result.minimum.estimatedTotalBytes, 5_486_870_912);
+  assert.deepEqual(result.minimum, result.maximum);
+  const scaled = estimateManualLlmResources({ ...inputs, contextLength: 8192, parallelSequences: 2, kvElementBytes: 4 });
+  assert.equal(scaled.kvCacheBytes, result.kvCacheBytes * 8);
+  assert.equal(scaled.minimum.weightsBytes, result.minimum.weightsBytes);
+  const unequal = estimateManualLlmResources({ ...inputs, valueLength: 64 });
+  assert.equal(unequal.kvCacheBytes, result.kvCacheBytes * 0.75);
+});
+
+test('manual estimator reuses quantization ranges and the minimum runtime allowance', async () => {
+  const { estimateManualLlmResources } = await import('../src/resourceEstimator.js');
+  const result = estimateManualLlmResources({ parameterCount: 1e6, quantization: 'Q4_K_M',
+    layerCount: 1, kvHeadCount: 1, keyLength: 64, valueLength: 64,
+    contextLength: 512, parallelSequences: 1, kvElementBytes: 2 });
+  assert.equal(result.minimum.weightsBytes, 587500);
+  assert.equal(result.maximum.weightsBytes, 637500);
+  assert.equal(result.minimum.runtimeOverheadBytes, 256 * 1024 ** 2);
+  assert.equal(result.maximum.estimatedTotalBytes - result.minimum.estimatedTotalBytes, 50000);
+});
+
+test('manual estimator rejects missing, invalid and overflowing inputs instead of guessing', async () => {
+  const { estimateManualLlmResources } = await import('../src/resourceEstimator.js');
+  const inputs = { parameterCount: 8e9, quantization: 'Q4_K_M', layerCount: 32,
+    kvHeadCount: 8, keyLength: 128, valueLength: 128, contextLength: 4096,
+    parallelSequences: 1, kvElementBytes: 2 };
+  for (const field of ['parameterCount', 'layerCount', 'kvHeadCount', 'keyLength', 'valueLength', 'contextLength', 'parallelSequences', 'kvElementBytes']) {
+    for (const invalid of [undefined, '', 0, -1, Infinity, NaN]) {
+      assert.throws(() => estimateManualLlmResources({ ...inputs, [field]: invalid }), RangeError);
+    }
+  }
+  assert.throws(() => estimateManualLlmResources({ ...inputs, layerCount: 1.5 }), RangeError);
+  assert.throws(() => estimateManualLlmResources({ ...inputs, quantization: 'unknown' }), RangeError);
+  assert.throws(() => estimateManualLlmResources({ ...inputs, quantization: 'custom' }), RangeError);
+  assert.throws(() => estimateManualLlmResources({ ...inputs, contextLength: Number.MAX_SAFE_INTEGER }), RangeError);
+  assert.throws(() => estimateManualLlmResources({ ...inputs, kvElementBytes: 0.5 }), RangeError);
+});

@@ -15,7 +15,7 @@ app.innerHTML = `
   <header class="site-header">
     <a class="site-brand" href="/" aria-label="AI Model Inspector home">AI Model Inspector</a>
     <nav class="site-nav" aria-label="Primary navigation">
-      <a href="/">Inspect</a>
+      <a href="/" aria-current="page">Inspect</a>
       <a href="/docs">Docs</a>
       <a href="/about">About</a>
       <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">GitHub</a>
@@ -46,8 +46,8 @@ app.innerHTML = `
   <main class="shell">
     <section class="hero">
       <p class="eyebrow">Local GGUF & ONNX analysis</p>
-      <h1>Private AI model inspection directly in your browser.</h1>
-      <p class="hero-summary">
+      <h1>Inspect GGUF &amp; ONNX models in your browser.</h1>
+      <div id="hero-description"><p class="hero-summary">
         Inspect metadata, explore model structure, compare files, and estimate inference RAM.
         Your model stays on your device.
       </p>
@@ -56,13 +56,7 @@ app.innerHTML = `
         <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">
           public on GitHub
         </a>.
-      </p>
-      <p class="source-link support-note">
-        Before the AI takes over the world,
-        <a href="https://buymeacoffee.com/mejustandrew" rel="noreferrer" target="_blank">
-          stop and buy me a coffee.
-        </a>
-      </p>
+      </p></div>
     </section>
 
 
@@ -138,55 +132,7 @@ app.innerHTML = `
       </section>
 
       <div class="results-content">
-        <section class="intro-copy" aria-label="About AI Model Inspector">
-          <div class="feature-grid">
-            <article class="feature-card">
-              <h2>Inspect locally</h2>
-              <p>Explore GGUF metadata, tensors, and ONNX graph details without sending the file to a server.</p>
-            </article>
-            <article class="feature-card">
-              <h2>Plan inference</h2>
-              <p>Estimate RAM for different context lengths, parallel sequences, and GGUF quantizations.</p>
-            </article>
-            <article class="feature-card">
-              <h2>Compare models</h2>
-              <p>Load two files of the same format to find shared, changed, and model-specific data.</p>
-            </article>
-          </div>
-          <p class="intro-note">
-            Download parsed results as JSON or calculate a SHA-256 fingerprint on demand.
-            Everything runs in a recent browser. Found an issue?
-            <a href="https://github.com/mejustandrew/ai-model-inspector/issues" rel="noreferrer" target="_blank">
-              Report it on GitHub.
-            </a>
-          </p>
-        </section>
 
-        <section class="home-reference" aria-labelledby="understand-results-title">
-          <div class="home-copy-grid">
-            <article>
-              <h2>What can AI Model Inspector inspect?</h2>
-              <p>For GGUF files, the inspector reads the header, typed metadata, and tensor descriptors. For ONNX files, it reads model properties, graph inputs and outputs, nodes, initializers, and tensor relationships.</p>
-            </article>
-            <article>
-              <h2>Estimate memory before running a model</h2>
-              <p>The estimator separates model weights, KV-cache memory, and a runtime allowance. Change context length and parallel sequences to see how the estimate responds.</p>
-            </article>
-            <article>
-              <h2>Your model stays on your device</h2>
-              <p>Parsing and optional SHA-256 hashing happen in your browser. The model file is not sent to an AI Model Inspector server. Ordinary page requests and advertising are separate; see the <a href="/privacy">privacy policy</a>.</p>
-            </article>
-          </div>
-          <h2 id="understand-results-title">Understand the results</h2>
-          <div class="docs-link-grid">
-            <a href="/docs/gguf"><strong>GGUF files</strong><span>Headers, metadata, and tensor descriptors</span></a>
-            <a href="/docs/gguf-metadata"><strong>GGUF metadata</strong><span>Architecture and tokenizer fields</span></a>
-            <a href="/docs/gguf-quantization"><strong>Quantization</strong><span>Size projections and tradeoffs</span></a>
-            <a href="/docs/inference-memory"><strong>Inference memory</strong><span>Formulas, assumptions, and limits</span></a>
-            <a href="/docs/onnx"><strong>ONNX files</strong><span>Model and graph information</span></a>
-            <a href="/docs/compare-models"><strong>Compare models</strong><span>What the side-by-side report checks</span></a>
-          </div>
-        </section>
 
     <section class="panel hidden collapsible-panel" id="summary-panel" data-collapsed="false">
       <div class="panel-head">
@@ -451,11 +397,39 @@ app.innerHTML = `
         </p>
       </div>
     </div>
+    <div class="home-support" id="home-support">
+        <section class="intro-copy" aria-label="About AI Model Inspector">
+          <div class="feature-grid">
+            <article class="feature-card">
+              <h2>Inspect locally</h2>
+              <p>Explore GGUF metadata, tensors, and ONNX graph details without sending the file to a server.</p>
+            </article>
+            <article class="feature-card">
+              <h2>Plan inference</h2>
+              <p>Estimate RAM for different context lengths, parallel sequences, and GGUF quantizations.</p>
+            </article>
+            <article class="feature-card">
+              <h2>Compare models</h2>
+              <p>Load two files of the same format to find shared, changed, and model-specific data.</p>
+            </article>
+          </div>
+          <p class="intro-note">
+            Download parsed results as JSON or calculate a SHA-256 fingerprint on demand.
+            Everything runs in a recent browser. Found an issue?
+            <a href="https://github.com/mejustandrew/ai-model-inspector/issues" rel="noreferrer" target="_blank">
+              Report it on GitHub.
+            </a>
+          </p>
+        </section>
+
+        <nav class="home-reference" aria-label="Tools and guides"><p class="source-link"><a href="/gguf-viewer">GGUF viewer</a> · <a href="/onnx-viewer">ONNX viewer</a> · <a href="/llm-memory-estimator">Memory Estimator</a> · <a href="/docs">Documentation</a></p></nav>
+    </div>
   </main>
-  <footer class="site-footer">
+  <div class="placement-reserve" aria-hidden="true"><!-- Reserved for a future placement. --></div>
+<footer class="site-footer">
     <nav aria-label="Footer navigation">
       <a href="/docs">Documentation</a>
-      <a href="/docs/inference-memory">Memory estimates</a>
+      <a href="/llm-memory-estimator">RAM estimator</a>
       <a href="/about">About</a>
       <a href="/privacy">Privacy</a>
       <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">GitHub</a>
@@ -856,7 +830,17 @@ function requestResultsNavigationSync() {
   }
 }
 
+function setReportFocus(active) {
+  const description = document.querySelector('#hero-description');
+  if (active) {
+    document.querySelector('#home-support').prepend(description);
+  } else {
+    document.querySelector('.hero').append(description);
+  }
+}
+
 function renderResultsNavigation(summaryText) {
+  setReportFocus(true);
   const navigationItems = [
     { panel: uploadPanel, label: 'Files' },
     { panel: summaryPanel, label: 'Summary' },
@@ -2098,6 +2082,7 @@ function renderComparison(leftResult, leftFile, rightResult, rightFile) {
 }
 
 function resetPanels() {
+  setReportFocus(false);
   expandAllPanels();
   setPanelCollapsed(dependencyTracePanel, true);
   setResultsNavigationOpen(false);
