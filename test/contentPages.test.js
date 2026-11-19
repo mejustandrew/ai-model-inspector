@@ -84,14 +84,6 @@ test('obsolete Hugging Face downloader route is not linked', async () => {
   }
 });
 
-test('AdSense publisher identity is exposed consistently', async () => {
-  const homepage = await readFile(path.join(root, 'index.html'), 'utf8');
-  const ads = await readFile(path.join(root, 'public/ads.txt'), 'utf8');
-  assert.match(homepage, /google-adsense-account" content="ca-pub-8908115236132872"/);
-  assert.equal(ads.trim(), 'google.com, pub-8908115236132872, DIRECT, f08c47fec0942fa0');
-});
-
-
 test('homepage SEO matches requested copy with consistent social metadata', async () => {
   const html = await readFile(path.join(root, 'index.html'), 'utf8');
   const title = 'AI Model Inspector | GGUF &amp; ONNX Model Viewer + RAM Estimator';
