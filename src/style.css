@@ -1401,3 +1401,7 @@ button:hover {
 
 /* Keep future placement space below the tool interface. */
 .placement-reserve { min-height: 4rem; }
+
+.site-footer .affiliate-message { font-size: .85rem; line-height: 1.6; }
+.site-footer .affiliate-message a { color: var(--accent); text-decoration: underline; text-underline-offset: .18em; }
+.site-footer .affiliate-message small { display: block; font-size: .9em; }

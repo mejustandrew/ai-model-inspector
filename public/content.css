@@ -76,3 +76,7 @@ th { color: var(--accent); }
   .article { border-radius: 18px; }
   table { display: block; overflow-x: auto; }
 }
+
+.site-footer .affiliate-message { font-size: .85rem; line-height: 1.6; }
+.site-footer .affiliate-message a { color: var(--accent); text-decoration: underline; text-underline-offset: .18em; }
+.site-footer .affiliate-message small { display: block; font-size: .9em; }
