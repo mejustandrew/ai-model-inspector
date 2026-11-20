@@ -36,9 +36,9 @@ app.innerHTML = `
       class="motion-toggle"
       id="motion-toggle"
       type="button"
-      aria-pressed="false"
-      aria-label="Freeze background motion"
-      title="Freeze background motion"
+      aria-pressed="true"
+      aria-label="Enable background motion"
+      title="Enable background motion"
     >
       <span class="motion-toggle-icon" aria-hidden="true">&#10043;</span>
     </button>
@@ -46,17 +46,15 @@ app.innerHTML = `
   <main class="shell">
     <section class="hero">
       <p class="eyebrow">Local GGUF & ONNX analysis</p>
-      <h1>Inspect GGUF &amp; ONNX models in your browser.</h1>
-      <div id="hero-description"><p class="hero-summary">
-        Inspect metadata, explore model structure, compare files, and estimate inference RAM.
-        Your model stays on your device.
-      </p>
+      <h1>Inspect GGUF &amp; ONNX models in your browser</h1>
+      <div id="hero-description">
       <p class="source-link">
-        No account or installation required. The project is
+        The project is
         <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">
-          public on GitHub
-        </a>.
-      </p></div>
+          public on GitHub.
+        </a>
+      </p>
+      <p class="affiliate-message"><a href="https://runpod.io?ref=160aj2j9" rel="sponsored noopener" target="_blank">Run the model you want and more with Runpod. Get $5 free credits to start using this link.</a></p></div>
     </section>
 
 
@@ -73,7 +71,8 @@ app.innerHTML = `
           <div class="dropzone-selection hidden" id="dropzone-selection">
             <span class="dropzone-file mono" id="dropzone-file"></span>
           </div>
-          <span class="dropzone-copy">Files are processed locally and never uploaded.</span>
+          <span class="dropzone-copy">Inspect metadata, explore model structure, compare files, and estimate inference RAM.</span>
+          <span class="dropzone-copy">The files never leave your device.</span>
         </label>
         <label class="dropzone compare-dropzone hidden" for="compare-file-input" id="compare-dropzone">
           <input id="compare-file-input" type="file" accept=".gguf,.onnx,application/octet-stream" />
@@ -402,15 +401,15 @@ app.innerHTML = `
           <div class="feature-grid">
             <article class="feature-card">
               <h2>Inspect locally</h2>
-              <p>Explore GGUF metadata, tensors, and ONNX graph details without sending the file to a server.</p>
+              <p>Explore GGUF metadata, tensors, and ONNX graph details without sending the file to a server</p>
             </article>
             <article class="feature-card">
               <h2>Plan inference</h2>
-              <p>Estimate RAM for different context lengths, parallel sequences, and GGUF quantizations.</p>
+              <p>Estimate RAM for different context lengths, parallel sequences, and GGUF quantizations</p>
             </article>
             <article class="feature-card">
               <h2>Compare models</h2>
-              <p>Load two files of the same format to find shared, changed, and model-specific data.</p>
+              <p>Load two files of the same format to find shared, changed, and model-specific data</p>
             </article>
           </div>
           <p class="intro-note">
@@ -420,21 +419,13 @@ app.innerHTML = `
               Report it on GitHub.
             </a>
           </p>
+          <p class="intro-note">No account or installation required.</p>
+          <p class="intro-note">AI Model Inspector is an open-source browser tool. Part of the <a href="https://pragmaones.com/">Pragmaones suite</a>.</p>
         </section>
-
-        <nav class="home-reference" aria-label="Tools and guides"><p class="source-link"><a href="/gguf-viewer">GGUF viewer</a> · <a href="/onnx-viewer">ONNX viewer</a> · <a href="/llm-memory-estimator">Memory Estimator</a> · <a href="/docs">Documentation</a></p></nav>
     </div>
   </main>
-  <div class="placement-reserve" aria-hidden="true"><!-- Reserved for a future placement. --></div>
 <footer class="site-footer">
-    <nav aria-label="Footer navigation">
-      <a href="/docs">Documentation</a>
-      <a href="/llm-memory-estimator">RAM estimator</a>
-      <a href="/about">About</a>
-      <a href="/privacy">Privacy</a>
-      <a href="https://github.com/mejustandrew/ai-model-inspector" rel="noreferrer" target="_blank">GitHub</a>
-    </nav>
-    <p>AI Model Inspector is an open-source browser tool. Part of the <a href="https://pragmaones.com/">Pragmaones suite</a>.</p>
+    <nav aria-label="Footer navigation"><a href="/gguf-viewer">GGUF viewer</a><a href="/onnx-viewer">ONNX viewer</a><a href="/llm-memory-estimator">Memory Estimator</a><a href="/docs">Documentation</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="https://github.com/mejustandrew/ai-model-inspector">GitHub</a></nav>
   </footer>
 `;
 
@@ -600,7 +591,7 @@ function setupDynamicGraphBackground(canvas) {
   let height = 0;
   let animationFrameId = 0;
   let lastFrameTime = 0;
-  let isFrozen = false;
+  let isFrozen = true;
   let particleFillStyle = 'rgba(148, 193, 255, 0.8)';
   let lineColor = '111, 170, 255';
 
@@ -731,7 +722,7 @@ function setupDynamicGraphBackground(canvas) {
   }
 
   function startAnimation() {
-    if (animationFrameId) {
+    if (animationFrameId || isFrozen) {
       return;
     }
 
@@ -2606,8 +2597,8 @@ if (motionToggle && graphBackgroundController) {
     motionToggle.setAttribute('aria-pressed', frozen ? 'true' : 'false');
     motionToggle.setAttribute(
       'aria-label',
-      frozen ? 'Resume background motion' : 'Freeze background motion'
+      frozen ? 'Enable background motion' : 'Freeze background motion'
     );
-    motionToggle.title = frozen ? 'Resume background motion' : 'Freeze background motion';
+    motionToggle.title = frozen ? 'Enable background motion' : 'Freeze background motion';
   });
 }

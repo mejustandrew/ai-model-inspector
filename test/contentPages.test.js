@@ -27,6 +27,15 @@ function count(html, pattern) {
   return [...html.matchAll(pattern)].length;
 }
 
+test('homepage runtime preserves the static affiliate message', async () => {
+  const html = await readFile(path.join(root, 'index.html'), 'utf8');
+  const script = await readFile(path.join(root, 'src/main.js'), 'utf8');
+  const message = html.match(/<p class="affiliate-message">[\s\S]*?<\/p>/)?.[0];
+  assert.ok(message, 'static homepage needs the affiliate message');
+  const template = script.slice(script.indexOf('app.innerHTML = `'), script.indexOf('`;'));
+  assert.ok(template.includes(message), 'homepage render must preserve the affiliate message');
+});
+
 test('every public page has unique crawlable metadata and one h1', async () => {
   const titles = new Set();
   const canonicals = new Set();
